@@ -105,7 +105,9 @@ const SOUND = [
 const SOUND_BY_ID = Object.fromEntries(SOUND.map((s) => [s.id, s]));
 function soundChip(id, size) {
   const s = SOUND_BY_ID[id] || SOUND[0]; const t = s.tint || "#9a86ff";
-  return <div style={{ width: size, height: size, borderRadius: "50%", flex: "0 0 auto", display: "flex", alignItems: "center", justifyContent: "center", fontSize: Math.round(size * 0.42), lineHeight: 1, background: `radial-gradient(circle at 50% 38%, ${t}55, ${t}1f 60%, rgba(8,5,16,0.62) 100%)`, boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.09), 0 2px 10px rgba(0,0,0,0.25)" }}>{s.glyph}</div>;
+  const base = { width: size, height: size, borderRadius: "50%", flex: "0 0 auto", overflow: "hidden", boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.09), 0 2px 10px rgba(0,0,0,0.25)" };
+  if (s.img) return <div style={base}><img src={s.img} alt="" draggable="false" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /></div>;
+  return <div style={{ ...base, display: "flex", alignItems: "center", justifyContent: "center", fontSize: Math.round(size * 0.42), lineHeight: 1, background: `radial-gradient(circle at 50% 38%, ${t}55, ${t}1f 60%, rgba(8,5,16,0.62) 100%)` }}>{s.glyph}</div>;
 }
 const SOUND_PACKS = {
   nature: { name: "Nature Pack", tag: "Rain, ocean, forest & fire", price: 0.99, sounds: ["rain", "ocean", "forest", "fire"] },
@@ -841,17 +843,25 @@ export default function Lull() {
             <div style={segWrap}>
               {DURATIONS[mode].map((m) => { const sel = durationMin === m; const big = m >= 60 ? m / 60 : m; const unit = m >= 60 ? "hr" : "min"; return (<button key={m} className="lull-seg lull-btn" aria-pressed={sel} onClick={() => { setDurationMin(m); setRemaining(m * 60); }} style={seg(sel)}><span style={{ fontSize: 16, fontWeight: 500 }}>{big}</span><span style={{ fontSize: 11, opacity: 0.6, letterSpacing: 1 }}>{unit}</span></button>); })}
             </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center", paddingTop: 2, maxWidth: 344 }}>
-              {SOUND.filter((o) => soundOwned(o.id)).map((o) => { const sel = scapeId === o.id; return (
+            {(() => {
+              const tile = (o) => { const sel = scapeId === o.id; return (
                 <button key={o.id} className="lull-btn" aria-pressed={sel} onClick={() => setScapeId(o.id)} title={o.name} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, width: 62, padding: "8px 4px 7px", borderRadius: 15, background: sel ? wa(0.12) : wa(0.04), border: "1px solid " + (sel ? wa(0.3) : wa(0.1)), color: sel ? ink : inkA(0.6), transition: "background .2s ease, border-color .2s ease, color .2s ease" }}>
                   {soundChip(o.id, 30)}
                   <span style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.2, whiteSpace: "nowrap" }}>{o.name}</span>
-                </button>); })}
-              {!allSoundsOwned && (<button key="more-sounds" className="lull-btn" onClick={() => setOrbStoreOpen(true)} title="More sounds" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 5, width: 62, padding: "8px 4px 7px", borderRadius: 15, background: wa(0.04), border: "1px dashed " + wa(0.2), color: inkA(0.6) }}>
+                </button>); };
+              const moreTile = (<button key="more-sounds" className="lull-btn" onClick={() => setOrbStoreOpen(true)} title="More sounds" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 5, width: 62, padding: "8px 4px 7px", borderRadius: 15, background: wa(0.04), border: "1px dashed " + wa(0.2), color: inkA(0.6) }}>
                   <div style={{ width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, border: "1px dashed " + wa(0.28) }}>＋</div>
                   <span style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.2 }}>More</span>
-                </button>)}
-            </div>
+                </button>);
+              const instruments = SOUND.filter((o) => o.free && soundOwned(o.id));   // Bowls, Handpan, Binaural
+              const nature = SOUND.filter((o) => !o.free && soundOwned(o.id));        // Rain, Ocean, Forest, Fire — kept together on their own line
+              return (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "center", paddingTop: 2, width: "100%" }}>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>{instruments.map(tile)}</div>
+                  {(nature.length > 0 || !allSoundsOwned) && (<div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>{nature.map(tile)}{!allSoundsOwned && moreTile}</div>)}
+                </div>
+              );
+            })()}
             {scapeId === "binaural" && (<p style={{ fontSize: 12, opacity: 0.55, textAlign: "center", margin: "2px 0 0", letterSpacing: 0.3 }}>Best with headphones</p>)}
             <button className="lull-btn lull-cta" onClick={startSession} style={{ ...glassBtn, marginTop: 4 }}>Begin</button>
             {sessions.length > 0 && (<button className="lull-btn" onClick={() => setShowHistory(true)} style={{ marginTop: 2, padding: "7px 0", fontSize: 12.5, letterSpacing: 0.4, color: inkA(0.5), alignSelf: "center" }}>{(() => { const w = minutesSince(sessions, Date.now() - 7 * DAY_MS); return w > 0 ? `You’ve breathed ${w} min this week` : "Your breaths"; })()}</button>)}
