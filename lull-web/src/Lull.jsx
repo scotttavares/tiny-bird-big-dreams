@@ -172,11 +172,11 @@ const ORBS = {
   wisp:     { name: "Wisp",     tag: "Wisps of light", kind: "image", src: "/assets/orb-wisp.webp", price: 0.5, zoom: 1.35, noBubble: true, hue: 0, ring: ["#6ea8ff", "#a06eff", "#ff6ec8"], bg: "radial-gradient(120% 120% at 50% 30%, #0e0a2a 0%, #070518 60%, #030110 100%)" },
   // Light orb — a pastel swirl on a soft bright ground (flips the UI to dark ink; drifting pastel blobs behind it).
   dawn:     { name: "Dawn",     tag: "Soft daylight", kind: "image", src: "/assets/orb-dawn.webp", price: 0.5, zoom: 1.25, noBubble: true, hue: 0, light: true, ring: ["#5ab0f5", "#a97fe6", "#f58cb8"], bg: "radial-gradient(125% 120% at 50% 8%, #ffffff 0%, #fbf7ff 55%, #f1edfa 100%)" },
-  // Rings orbs — a rosette of translucent light-rings woven around a dark hollow centre (coded, no image).
-  halo:     { name: "Halo",     tag: "Woven light",   kind: "rings", price: 0.5, palette: ["#e0929e", "#e6935e", "#8fb0e0", "#5ececf", "#efe6f2", "#c98ad0"], ring: ["#e0929e", "#8fb0e0", "#5ececf"], bg: "radial-gradient(125% 120% at 50% 20%, #10131f 0%, #080a14 58%, #04050c 100%)" },
-  prism:    { name: "Prism",    tag: "Spectrum halo", kind: "rings", price: 0.5, palette: ["#ff9a9a", "#ffcf8a", "#9be89b", "#7fb8ff", "#c79bff", "#ff8fd0"], ring: ["#ff9a9a", "#9be89b", "#7fb8ff"], bg: "radial-gradient(125% 120% at 50% 20%, #12101c 0%, #0a0813 58%, #050310 100%)" },
-  lagoon:   { name: "Lagoon",   tag: "Tidal rings",   kind: "rings", price: 0.5, palette: ["#5ec8ff", "#4fd0c0", "#7fb8ff", "#8ae0d0", "#bfeeff", "#6ad0ff"], ring: ["#5ec8ff", "#4fd0c0", "#bfeeff"], bg: "radial-gradient(125% 120% at 50% 20%, #071a24 0%, #04121a 58%, #02090f 100%)" },
-  dusk:     { name: "Dusk",     tag: "Ember halo",    kind: "rings", price: 0.5, palette: ["#ff9a7a", "#ff6ea0", "#c79bff", "#ffb27a", "#ff8fbf", "#b46eff"], ring: ["#ff9a7a", "#ff6ea0", "#c79bff"], bg: "radial-gradient(125% 120% at 50% 20%, #1c1020 0%, #100812 58%, #08040a 100%)" },
+  // Aura Pack — premium generated "woven light-rings" orbs (image), each on its own deep ground.
+  halo:     { name: "Halo",     tag: "Woven light",   kind: "image", src: "/assets/orb-halo.webp",   price: 0.5, zoom: 1.1, hue: 0, ring: ["#e0929e", "#8fb0e0", "#5ececf"], bg: "radial-gradient(125% 120% at 50% 20%, #0e1220 0%, #080b16 58%, #04060e 100%)" },
+  prism:    { name: "Prism",    tag: "Spectrum halo", kind: "image", src: "/assets/orb-prism.webp",  price: 0.5, zoom: 1.1, hue: 0, ring: ["#ff9a9a", "#9be89b", "#7fb8ff"], bg: "radial-gradient(125% 120% at 50% 20%, #0b0910 0%, #070510 58%, #030208 100%)" },
+  lagoon:   { name: "Lagoon",   tag: "Tidal rings",   kind: "image", src: "/assets/orb-lagoon.webp", price: 0.5, zoom: 1.1, hue: 0, ring: ["#5ec8ff", "#4fd0c0", "#bfeeff"], bg: "radial-gradient(125% 120% at 50% 20%, #06181f 0%, #04111a 58%, #02090f 100%)" },
+  dusk:     { name: "Dusk",     tag: "Ember halo",    kind: "image", src: "/assets/orb-dusk.webp",   price: 0.5, zoom: 1.1, hue: 0, ring: ["#ff9a7a", "#ff6ea0", "#c79bff"], bg: "radial-gradient(125% 120% at 50% 20%, #140b16 0%, #0c0710 58%, #060309 100%)" },
 };
 const ORB_ORDER = ["aurora", "bloom", "ember", "verdant", "blossom", "glacier", "nebula", "iris", "dawn", "solstice", "frost", "nova", "wisp", "halo", "prism", "lagoon", "dusk"];
 // ---------- packs & bundle ----------
