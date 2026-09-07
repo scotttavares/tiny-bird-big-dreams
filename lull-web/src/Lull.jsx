@@ -126,10 +126,23 @@ const ORBS = {
   ion:      { name: "Ion",      tag: "Plasma sphere", kind: "plasma", dark: true, price: 0.5, thumb: "/assets/orb-thumb-ion.png", ring: ["#7fd0ff", "#4fb0ff", "#bfeeff"], bg: "radial-gradient(120% 120% at 50% 32%, #06111f 0%, #030812 60%, #010307 100%)" },
 };
 const ORB_ORDER = ["aurora", "bloom", "ember", "verdant", "blossom", "glacier", "nebula", "solstice", "frost", "nova", "ion"];
+// ---------- packs & bundle ----------
+// Orbs are sold in themed packs (one price unlocks every orb in the pack), plus a single
+// "Everything" bundle that unlocks all orbs — and every future orb & sound we add — for one
+// price. Aurora + Bloom ship free and belong to no pack. Pricing is scaffolded; real charging
+// (Apple In-App Purchase on iOS, Stripe on web) wires into unlockPack/unlockBundle — the same
+// seam as unlockOrb.
+const PACKS = {
+  swirls: { name: "Swirls Pack", tag: "Five flowing colour orbs, each with its own sky", price: 0.99, orbs: ["ember", "verdant", "blossom", "glacier", "nebula"] },
+  cosmos: { name: "Cosmos Pack", tag: "Four particle & plasma orbs on deep space", price: 0.99, orbs: ["solstice", "frost", "nova", "ion"] },
+};
+const PACK_ORDER = ["swirls", "cosmos"];
+const BUNDLE = { name: "Everything", tag: "Every orb — and every future orb & sound we add", price: 3.99 };
+const FREE_ORBS = ORB_ORDER.filter((id) => (ORBS[id].price || 0) === 0); // ship unlocked (Aurora, Bloom)
 const ORB_KEY = "lull.orb.v1";
 const OWNED_KEY = "lull.orbsOwned.v1";
 function loadOrb() { try { const v = localStorage.getItem(ORB_KEY); return v && ORBS[v] ? v : "aurora"; } catch (e) { return "aurora"; } }
-function loadOwned() { try { const r = JSON.parse(localStorage.getItem(OWNED_KEY) || "null"); const list = Array.isArray(r) ? r.filter((id) => ORBS[id]) : []; return list.includes("aurora") ? list : ["aurora", ...list]; } catch (e) { return ["aurora"]; } }
+function loadOwned() { try { const r = JSON.parse(localStorage.getItem(OWNED_KEY) || "null"); const saved = Array.isArray(r) ? r.filter((id) => ORBS[id]) : []; const merged = [...FREE_ORBS]; saved.forEach((id) => { if (!merged.includes(id)) merged.push(id); }); return merged; } catch (e) { return [...FREE_ORBS]; } }
 function fmtPrice(p) { return p ? "$" + p.toFixed(2) : "Free"; }
 function orbChip(id, size) {
   const o = ORBS[id] || ORBS.aurora;
@@ -341,6 +354,13 @@ export default function Lull() {
   // on iOS, Stripe on web) drops in here — await the receipt, then unlock on success.
   const unlockOrb = (id) => { setOwnedOrbs((prev) => (prev.includes(id) ? prev : [...prev, id])); setOrbId(id); };
   const restoreOrbs = () => { /* real IAP/Stripe restore wires in here */ };
+  const orbOwned = (id) => ownedOrbs.includes(id);
+  const packOwned = (p) => p.orbs.every(orbOwned);
+  const allOwned = ORB_ORDER.every(orbOwned);
+  // Unlock every orb in a pack (or every orb, for the bundle). Real charging awaits the receipt,
+  // then calls these on success — same seam as unlockOrb.
+  const unlockPack = (packId) => { const p = PACKS[packId]; if (!p) return; setOwnedOrbs((prev) => { const next = [...prev]; p.orbs.forEach((id) => { if (!next.includes(id)) next.push(id); }); return next; }); };
+  const unlockBundle = () => { setOwnedOrbs([...ORB_ORDER]); };
   useEffect(() => { try { if (window.matchMedia) setLight(window.matchMedia("(prefers-color-scheme: light)").matches); } catch (e) {} }, []);
   useEffect(() => { try { document.documentElement.style.colorScheme = "dark"; const m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", "#070410"); } catch (e) {} }, []);
 
@@ -776,34 +796,68 @@ export default function Lull() {
             <span style={{ fontSize: 12, letterSpacing: 5, textTransform: "uppercase", fontWeight: 500, opacity: 0.6 }}>Orbs</span>
             <button className="lull-btn" aria-label="Done" onClick={() => setOrbStoreOpen(false)} style={{ padding: "6px 4px", opacity: 0.75, fontSize: 15 }}>Done</button>
           </div>
-          <p style={{ fontSize: 14, lineHeight: 1.5, opacity: 0.6, margin: "0 0 20px", maxWidth: "42ch" }}>Choose the orb you breathe with. Unlocked orbs are yours forever.</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            {ORB_ORDER.map((id) => {
-              const o = ORBS[id]; const owned = ownedOrbs.includes(id); const sel = orbId === id;
+          <p style={{ fontSize: 14, lineHeight: 1.5, opacity: 0.6, margin: "0 0 24px", maxWidth: "42ch" }}>Tap an orb to breathe with it. Unlock packs to add more — yours forever, no subscription.</p>
+
+          {/* Your orbs — free + everything you own, tap to breathe with it */}
+          <div style={{ fontSize: 11, letterSpacing: 3, textTransform: "uppercase", fontWeight: 600, opacity: 0.5, marginBottom: 13 }}>Your orbs</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(94px, 1fr))", gap: 11, marginBottom: allOwned ? 4 : 30 }}>
+            {ORB_ORDER.filter(orbOwned).map((id) => {
+              const o = ORBS[id]; const sel = orbId === id;
               return (
-                <div key={id} style={{ display: "flex", alignItems: "center", gap: 16, padding: 16, borderRadius: 20, background: wa(0.05), border: "1px solid " + (sel ? wa(0.34) : wa(0.12)), boxShadow: sel ? "0 8px 22px -14px rgba(0,0,0,0.55)" : "none", transition: "border-color .2s ease" }}>
-                  {orbChip(id, 66)}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: 17, fontWeight: 600, letterSpacing: 0.2 }}>{o.name}</span>
-                      {sel && (<span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.5, color: inkA(0.5) }}>· In use</span>)}
-                    </div>
-                    <div style={{ fontSize: 12.5, opacity: 0.55, marginTop: 3 }}>{o.tag}</div>
-                    {o.price === 0
-                      ? (<div style={{ fontSize: 12.5, fontWeight: 600, opacity: 0.7, marginTop: 6, letterSpacing: 0.2 }}>Free · always yours</div>)
-                      : (!owned && (<div style={{ fontSize: 12.5, fontWeight: 600, opacity: 0.85, marginTop: 6, letterSpacing: 0.2 }}>{fmtPrice(o.price)} · one-time</div>))}
-                  </div>
-                  {owned ? (
-                    <button className="lull-btn" aria-pressed={sel} onClick={() => selectOrb(id)} disabled={sel} style={{ padding: "9px 15px", borderRadius: 999, fontSize: 13, fontWeight: 500, letterSpacing: 0.3, whiteSpace: "nowrap", background: sel ? "transparent" : wa(0.12), border: "1px solid " + (sel ? wa(0.22) : wa(0.22)), color: sel ? inkA(0.6) : ink }}>{sel ? "✓ Selected" : "Select"}</button>
-                  ) : (
-                    <button className="lull-btn" onClick={() => unlockOrb(id)} style={{ padding: "10px 16px", borderRadius: 999, fontSize: 13.5, fontWeight: 600, letterSpacing: 0.3, whiteSpace: "nowrap", color: "#fff", background: "linear-gradient(180deg, #9a86ff 0%, #6f5cff 100%)", boxShadow: "0 8px 18px -9px rgba(111,92,255,0.85)" }}>Unlock</button>
-                  )}
-                </div>
+                <button key={id} className="lull-btn" aria-pressed={sel} onClick={() => selectOrb(id)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 9, padding: "15px 8px 12px", borderRadius: 18, background: sel ? wa(0.09) : wa(0.03), border: "1px solid " + (sel ? wa(0.34) : wa(0.1)), boxShadow: sel ? "0 8px 22px -14px rgba(0,0,0,0.55)" : "none", transition: "border-color .2s ease, background .2s ease" }}>
+                  {orbChip(id, 58)}
+                  <span style={{ fontSize: 13, fontWeight: 600, letterSpacing: 0.2 }}>{o.name}</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", color: sel ? inkA(0.72) : inkA(0.36) }}>{sel ? "In use" : "Tap to use"}</span>
+                </button>
               );
             })}
           </div>
-          <button className="lull-btn" onClick={restoreOrbs} style={{ alignSelf: "center", marginTop: 20, padding: "8px 0", fontSize: 12.5, letterSpacing: 0.4, color: inkA(0.5) }}>Restore purchases</button>
-          <p style={{ fontSize: 11.5, lineHeight: 1.5, opacity: 0.42, textAlign: "center", margin: "6px auto 0", maxWidth: "40ch" }}>One-time purchase, no subscription. Card payments arrive shortly — for now, unlocking is free while we finish setup.</p>
+
+          {/* Offers — bundle hero + packs, each hidden once fully owned */}
+          {!allOwned && (
+            <>
+              <div style={{ fontSize: 11, letterSpacing: 3, textTransform: "uppercase", fontWeight: 600, opacity: 0.5, marginBottom: 13 }}>Unlock more</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                <div style={{ padding: 18, borderRadius: 22, background: "linear-gradient(152deg, rgba(154,134,255,0.18), rgba(111,92,255,0.05))", border: "1px solid " + wa(0.2) }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 13 }}>
+                    <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: 0.2 }}>Everything</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", padding: "3px 9px", borderRadius: 999, background: wa(0.15), color: inkA(0.82) }}>Best value</span>
+                  </div>
+                  <div style={{ display: "flex", marginBottom: 14 }}>
+                    {["aurora", "ember", "blossom", "nova", "ion"].map((id, i) => (
+                      <div key={id} style={{ marginLeft: i ? -14 : 0, borderRadius: "50%", boxShadow: "0 0 0 2.5px rgba(8,5,16,0.92)" }}>{orbChip(id, 46)}</div>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 13, lineHeight: 1.5, opacity: 0.72, marginBottom: 15 }}>{BUNDLE.tag} — unlocked forever.</div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                    <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: 0.2 }}>{fmtPrice(BUNDLE.price)}<span style={{ fontSize: 12, fontWeight: 500, opacity: 0.55 }}> · one-time</span></span>
+                    <button className="lull-btn" onClick={unlockBundle} style={{ padding: "11px 22px", borderRadius: 999, fontSize: 14, fontWeight: 700, letterSpacing: 0.3, whiteSpace: "nowrap", color: "#fff", background: "linear-gradient(180deg, #9a86ff 0%, #6f5cff 100%)", boxShadow: "0 10px 22px -10px rgba(111,92,255,0.9)" }}>Unlock all</button>
+                  </div>
+                </div>
+                {PACK_ORDER.map((pid) => {
+                  const p = PACKS[pid]; if (packOwned(p)) return null;
+                  return (
+                    <div key={pid} style={{ padding: 16, borderRadius: 20, background: wa(0.05), border: "1px solid " + wa(0.12) }}>
+                      <div style={{ display: "flex", marginBottom: 13 }}>
+                        {p.orbs.map((id, i) => (
+                          <div key={id} style={{ marginLeft: i ? -12 : 0, borderRadius: "50%", boxShadow: "0 0 0 2.5px rgba(8,5,16,0.92)" }}>{orbChip(id, 40)}</div>
+                        ))}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 15.5, fontWeight: 600, letterSpacing: 0.2 }}>{p.name}</div>
+                          <div style={{ fontSize: 12, opacity: 0.55, marginTop: 3 }}>{p.tag}</div>
+                        </div>
+                        <button className="lull-btn" onClick={() => unlockPack(pid)} style={{ padding: "10px 18px", borderRadius: 999, fontSize: 13.5, fontWeight: 600, letterSpacing: 0.3, whiteSpace: "nowrap", color: ink, background: wa(0.12), border: "1px solid " + wa(0.22) }}>{fmtPrice(p.price)}</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+          <button className="lull-btn" onClick={restoreOrbs} style={{ alignSelf: "center", marginTop: 22, padding: "8px 0", fontSize: 12.5, letterSpacing: 0.4, color: inkA(0.5) }}>Restore purchases</button>
+          <p style={{ fontSize: 11.5, lineHeight: 1.5, opacity: 0.42, textAlign: "center", margin: "6px auto 0", maxWidth: "40ch" }}>One-time purchases, no subscription. Card payments arrive shortly — for now, unlocking is free while we finish setup.</p>
         </div>
       )}
       {showCustom && (
