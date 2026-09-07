@@ -841,10 +841,16 @@ export default function Lull() {
             <div style={segWrap}>
               {DURATIONS[mode].map((m) => { const sel = durationMin === m; const big = m >= 60 ? m / 60 : m; const unit = m >= 60 ? "hr" : "min"; return (<button key={m} className="lull-seg lull-btn" aria-pressed={sel} onClick={() => { setDurationMin(m); setRemaining(m * 60); }} style={seg(sel)}><span style={{ fontSize: 16, fontWeight: 500 }}>{big}</span><span style={{ fontSize: 11, opacity: 0.6, letterSpacing: 1 }}>{unit}</span></button>); })}
             </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, justifyContent: "center", paddingTop: 2 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center", paddingTop: 2, maxWidth: 344 }}>
               {SOUND.filter((o) => soundOwned(o.id)).map((o) => { const sel = scapeId === o.id; return (
-                <button key={o.id} className="lull-seg lull-btn" aria-pressed={sel} onClick={() => setScapeId(o.id)} style={{ padding: "7px 13px", borderRadius: 999, fontSize: 12.5, letterSpacing: 0.3, background: sel ? wa(0.14) : wa(0.05), border: "1px solid " + (sel ? wa(0.3) : wa(0.1)), color: sel ? ink : inkA(0.55), transition: "background .25s ease, color .25s ease, border-color .25s ease" }}>{o.name}</button>); })}
-              {!allSoundsOwned && (<button key="more-sounds" className="lull-seg lull-btn" onClick={() => setOrbStoreOpen(true)} style={{ padding: "7px 13px", borderRadius: 999, fontSize: 12.5, letterSpacing: 0.3, background: wa(0.05), border: "1px dashed " + wa(0.22), color: inkA(0.6) }}>＋ More</button>)}
+                <button key={o.id} className="lull-btn" aria-pressed={sel} onClick={() => setScapeId(o.id)} title={o.name} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, width: 62, padding: "8px 4px 7px", borderRadius: 15, background: sel ? wa(0.12) : wa(0.04), border: "1px solid " + (sel ? wa(0.3) : wa(0.1)), color: sel ? ink : inkA(0.6), transition: "background .2s ease, border-color .2s ease, color .2s ease" }}>
+                  {soundChip(o.id, 30)}
+                  <span style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.2, whiteSpace: "nowrap" }}>{o.name}</span>
+                </button>); })}
+              {!allSoundsOwned && (<button key="more-sounds" className="lull-btn" onClick={() => setOrbStoreOpen(true)} title="More sounds" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 5, width: 62, padding: "8px 4px 7px", borderRadius: 15, background: wa(0.04), border: "1px dashed " + wa(0.2), color: inkA(0.6) }}>
+                  <div style={{ width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, border: "1px dashed " + wa(0.28) }}>＋</div>
+                  <span style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.2 }}>More</span>
+                </button>)}
             </div>
             {scapeId === "binaural" && (<p style={{ fontSize: 12, opacity: 0.55, textAlign: "center", margin: "2px 0 0", letterSpacing: 0.3 }}>Best with headphones</p>)}
             <button className="lull-btn lull-cta" onClick={startSession} style={{ ...glassBtn, marginTop: 4 }}>Begin</button>
