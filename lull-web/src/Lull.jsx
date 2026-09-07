@@ -115,8 +115,12 @@ const ORBS = {
   blossom: { name: "Blossom", tag: "Rose petals",   kind: "image", src: "/assets/orb-swirl-b.webp", white: false, price: 0.5, zoom: 1.5, noBubble: true, hue: 90,  sat: 1.12, ring: ["#ff8fbf", "#ff6ea0", "#ffa8d8"] },
   glacier: { name: "Glacier", tag: "Icy current",   kind: "image", src: "/assets/orb-swirl-c.webp", white: false, price: 0.5, zoom: 1.5, noBubble: true, hue: 310, sat: 1.1,  ring: ["#5ee0ff", "#66d6e6", "#7fb8ff"] },
   nebula:  { name: "Nebula",  tag: "Cosmic violet", kind: "image", src: "/assets/orb-swirl-d.webp", white: false, price: 0.5, zoom: 1.5, noBubble: true, hue: 55,  sat: 1.12, ring: ["#b46eff", "#8a6eff", "#ff6ecd"] },
+  // Particle spheres — a rotating cloud of glowing dots on a deep black ground.
+  solstice: { name: "Solstice", tag: "Ember dust",   kind: "particles", dark: true, price: 0.5, palette: { top: [255, 150, 55],  mid: [255, 180, 120], bot: [255, 255, 255] }, ring: ["#ffb04a", "#ff8a3c", "#fff0d6"] },
+  frost:    { name: "Frost",    tag: "Ice dust",     kind: "particles", dark: true, price: 0.5, palette: { top: [120, 205, 255], mid: [180, 228, 255], bot: [255, 255, 255] }, ring: ["#7fd0ff", "#b0e6ff", "#ffffff"] },
+  nova:     { name: "Nova",     tag: "Stardust",     kind: "particles", dark: true, price: 0.5, palette: { top: [190, 120, 255], mid: [230, 140, 230], bot: [255, 155, 210] }, ring: ["#b46eff", "#e08aff", "#ff8ec8"] },
 };
-const ORB_ORDER = ["aurora", "ember", "verdant", "blossom", "glacier", "nebula"];
+const ORB_ORDER = ["aurora", "ember", "verdant", "blossom", "glacier", "nebula", "solstice", "frost", "nova"];
 const ORB_KEY = "lull.orb.v1";
 const OWNED_KEY = "lull.orbsOwned.v1";
 function loadOrb() { try { const v = localStorage.getItem(ORB_KEY); return v && ORBS[v] ? v : "aurora"; } catch (e) { return "aurora"; } }
@@ -126,10 +130,47 @@ function orbChip(id, size) {
   const o = ORBS[id] || ORBS.aurora;
   const base = { width: size, height: size, borderRadius: "50%", flex: "0 0 auto", overflow: "hidden", boxShadow: "0 2px 10px rgba(0,0,0,0.22)" };
   if (o.kind === "image") return <div style={base}><img src={o.src} alt="" draggable="false" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transform: o.zoom ? `scale(${o.zoom})` : undefined, transformOrigin: "center", filter: o.hue ? `hue-rotate(${o.hue}deg) saturate(${o.sat || 1.1})` : undefined }} /></div>;
+  if (o.kind === "particles") { const t = o.palette.top.join(","), bt = o.palette.bot.join(","); return <div style={{ ...base, background: `radial-gradient(58% 52% at 50% 33%, rgba(${t},0.95), transparent 62%), radial-gradient(54% 50% at 50% 78%, rgba(${bt},0.92), transparent 62%), #060409` }} />; }
   const cols = o.colors || ["140,180,255", "196,155,255", "255,158,203", "134,235,205"];
   const layers = cols.map((c, i, arr) => { const a = (i / arr.length) * Math.PI * 2 - Math.PI / 2; const x = (50 + Math.cos(a) * 24).toFixed(0); const y = (50 + Math.sin(a) * 24).toFixed(0); return `radial-gradient(42% 42% at ${x}% ${y}%, rgba(${c},0.92), transparent 60%)`; });
   layers.push("radial-gradient(30% 30% at 50% 50%, rgba(255,255,255,0.85), transparent 60%)");
   return <div style={{ ...base, background: layers.join(", ") + ", " + (o.white ? "#ffffff" : "#0e0b1a") }} />;
+}
+// ---------- particle sphere (canvas) ----------
+// A rotating sphere of ~2200 glowing dots (fibonacci distribution + jitter), coloured by a
+// vertical gradient (bright caps, dim equator) with depth-based size/alpha and a soft twinkle.
+function buildParticles(n) {
+  const p = [], ga = Math.PI * (3 - Math.sqrt(5));
+  for (let i = 0; i < n; i++) {
+    let y = 1 - (i / (n - 1)) * 2;
+    const r0 = Math.sqrt(Math.max(0, 1 - y * y));
+    const th = ga * i + (Math.random() - 0.5) * 0.5;
+    const rr = 0.93 + Math.random() * 0.12;
+    const x = Math.cos(th) * r0, z = Math.sin(th) * r0; y += (Math.random() - 0.5) * 0.04;
+    p.push({ x: x * rr, y: y * rr, z: z * rr, tw: Math.random() * 6.28, sp: 0.6 + Math.random() * 0.9, big: Math.random() < 0.06 });
+  }
+  return p;
+}
+function drawParticleSphere(ctx, size, pts, pal, t) {
+  const CX = size / 2, CY = size / 2, R = size * 0.42;
+  const ang = t * 0.26, ca = Math.cos(ang), sa = Math.sin(ang), tilt = -0.30, ct = Math.cos(tilt), st = Math.sin(tilt);
+  ctx.clearRect(0, 0, size, size); ctx.globalCompositeOperation = "lighter";
+  const lerp = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+  const col3 = (ny) => ny < 0.5 ? lerp(pal.top, pal.mid, ny / 0.5) : lerp(pal.mid, pal.bot, (ny - 0.5) / 0.5);
+  for (const p of pts) {
+    const X = p.x * ca - p.z * sa, Z = p.x * sa + p.z * ca, Y = p.y;
+    const Y2 = Y * ct - Z * st, Z2 = Y * st + Z * ct;
+    const sx = CX + X * R, sy = CY + Y2 * R, depth = (Z2 + 1) / 2, ny = (Y2 + 1) / 2;
+    const cap = Math.pow(Math.abs(Y2), 1.05);
+    const tw = 0.65 + 0.35 * Math.sin(t * 2.2 * p.sp + p.tw);
+    let a = (0.16 + 0.95 * cap) * (0.4 + 0.6 * depth) * tw;
+    if (p.big) a = Math.min(1, a * 1.7);
+    const c = col3(Math.min(1, Math.max(0, ny)));
+    const sz = (0.8 + 2.0 * depth) * (p.big ? 1.7 : 1);
+    ctx.fillStyle = "rgba(" + (c[0] | 0) + "," + (c[1] | 0) + "," + (c[2] | 0) + "," + Math.min(1, a).toFixed(3) + ")";
+    ctx.fillRect(sx - sz / 2, sy - sz / 2, sz, sz);
+  }
+  ctx.globalCompositeOperation = "source-over";
 }
 function customRatio(c) { return [c.inhale, c.hold, c.exhale, c.hold2].filter((n) => n > 0).join(" · "); }
 function customPhases(c, HI, LO, night) { const out = [{ key: "inhale", label: "Breathe in", dur: c.inhale, scale: HI, tone: "cool" }]; if (c.hold > 0) out.push({ key: "hold", label: "Hold", dur: c.hold, scale: HI, tone: "cool" }); out.push({ key: "exhale", label: night ? "Let go" : "Breathe out", dur: c.exhale, scale: LO, tone: "warm" }); if (c.hold2 > 0) out.push({ key: "hold", label: "Hold", dur: c.hold2, scale: LO, tone: "warm" }); return out; }
@@ -262,6 +303,24 @@ export default function Lull() {
   const pausedRef = useRef(false); const phaseTimeout = useRef(null); const tickRef = useRef(null);
   const soundRef = useRef(soundOn); const modeRef = useRef(mode); const patternIdRef = useRef(patternId);
   const audioRef = useRef(null); const nodesRef = useRef(null); const scapeRef = useRef(null); const brownRef = useRef(null); const whiteRef = useRef(null); const scapeIdRef = useRef("bowls");
+  const particleRef = useRef(null);
+  // Drive the particle-sphere canvas while a particle orb is selected; clean up on change/unmount.
+  useEffect(() => {
+    const orb = ORBS[orbId] || ORBS.aurora;
+    if (orb.kind !== "particles") return;
+    const canvas = particleRef.current; if (!canvas) return;
+    const ctx = canvas.getContext("2d"); if (!ctx) return;
+    const DPR = Math.min((typeof window !== "undefined" && window.devicePixelRatio) || 1, 2);
+    const size = canvas.clientWidth || 264;
+    canvas.width = Math.round(size * DPR); canvas.height = Math.round(size * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const pts = buildParticles(2200);
+    let raf = 0; const start = (typeof performance !== "undefined" ? performance.now() : Date.now());
+    const loop = (now) => { drawParticleSphere(ctx, size, pts, orb.palette, (now - start) / 1000); raf = requestAnimationFrame(loop); };
+    if (prefersReduced) drawParticleSphere(ctx, size, pts, orb.palette, 0);
+    else raf = requestAnimationFrame(loop);
+    return () => { if (raf) cancelAnimationFrame(raf); };
+  }, [orbId]);
 
   useEffect(() => { soundRef.current = soundOn; }, [soundOn]);
   useEffect(() => { modeRef.current = mode; }, [mode]);
@@ -407,8 +466,9 @@ export default function Lull() {
   // The progress ring's gradient matches the selected orb's own palette (falls back to the theme).
   const ringColors = selectedOrb.ring || [ringFrom, ringTo];
   const onWhite = !!selectedOrb.white && !night;   // Apple-glow orb sits on a clean white ground
+  const onDark = selectedOrb.kind === "particles"; // particle spheres glow on a deep-black ground
   const daylight = light && !night;                 // user's manual light theme
-  const lightUI = onWhite || daylight;              // dark ink on a white or light ground
+  const lightUI = !onDark && (onWhite || daylight); // dark ink on a white/light ground; light ink on black
   const orbSrc = selectedOrb.kind === "image" ? selectedOrb.src : null;
   // Melt the image's near-black edge into the ground (both themes) so there's no black disc/halo —
   // on dark it becomes a soft glow, on light the warm ground shows around a soft-edged glass ball.
@@ -427,7 +487,8 @@ export default function Lull() {
   const wa = (a) => (lightUI ? `rgba(70,52,120,${a})` : `rgba(255,255,255,${a})`);
   const LIGHT_ROOT = "radial-gradient(125% 110% at 50% 6%, #faf4ee 0%, #f2eaef 55%, #ece1e9 100%)";
   const WHITE_ROOT = "radial-gradient(125% 120% at 50% 4%, #ffffff 0%, #fbfbfe 58%, #f3f3f8 100%)";
-  const groundBg = onWhite ? WHITE_ROOT : (night ? th.rootNight : (daylight ? LIGHT_ROOT : th.rootDay));
+  const DARK_ROOT = "radial-gradient(120% 120% at 50% 32%, #0a0711 0%, #050308 60%, #020104 100%)";
+  const groundBg = onDark ? DARK_ROOT : onWhite ? WHITE_ROOT : (night ? th.rootNight : (daylight ? LIGHT_ROOT : th.rootDay));
   const root = { minHeight: "100vh", width: "100%", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden", background: groundBg, color: ink, fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif', WebkitFontSmoothing: "antialiased", transition: "background 1.4s ease, color 1.4s ease" };
   const frame = { position: "relative", zIndex: 2, width: "100%", maxWidth: 460, minHeight: "min(100vh, 820px)", padding: "max(26px, calc(env(safe-area-inset-top) + 6px)) 26px calc(40px + env(safe-area-inset-bottom))", display: "flex", flexDirection: "column", alignItems: "center" };
   const css = `
@@ -517,14 +578,14 @@ export default function Lull() {
         </defs>
       </svg>
 
-      <div className="amb1" style={{ position: "absolute", top: "-10%", left: "-15%", width: 520, height: 520, borderRadius: "50%", background: amb1, filter: "blur(20px)", zIndex: 0, opacity: onWhite ? 0 : 1, transition: "background 1.4s ease, opacity 1.2s ease" }} />
-      <div className="amb2" style={{ position: "absolute", bottom: "-12%", right: "-18%", width: 560, height: 560, borderRadius: "50%", background: amb2, filter: "blur(20px)", zIndex: 0, opacity: onWhite ? 0 : 1, transition: "background 1.4s ease, opacity 1.2s ease" }} />
-      <div style={{ position: "absolute", inset: 0, background: isCool ? tintCool : tintWarm, opacity: onWhite ? 0 : 1, transition: "background 1.5s ease, opacity 1.2s ease", zIndex: 1, pointerEvents: "none" }} />
+      <div className="amb1" style={{ position: "absolute", top: "-10%", left: "-15%", width: 520, height: 520, borderRadius: "50%", background: amb1, filter: "blur(20px)", zIndex: 0, opacity: (onWhite || onDark) ? 0 : 1, transition: "background 1.4s ease, opacity 1.2s ease" }} />
+      <div className="amb2" style={{ position: "absolute", bottom: "-12%", right: "-18%", width: 560, height: 560, borderRadius: "50%", background: amb2, filter: "blur(20px)", zIndex: 0, opacity: (onWhite || onDark) ? 0 : 1, transition: "background 1.4s ease, opacity 1.2s ease" }} />
+      <div style={{ position: "absolute", inset: 0, background: isCool ? tintCool : tintWarm, opacity: (onWhite || onDark) ? 0 : 1, transition: "background 1.5s ease, opacity 1.2s ease", zIndex: 1, pointerEvents: "none" }} />
 
       <div style={frame}>
         <div style={{ position: "relative", width: "100%", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 36, marginBottom: 8 }}>
           <span style={{ fontSize: 14, letterSpacing: 6, textTransform: "uppercase", fontWeight: 500, opacity: 0.82, paddingLeft: 6 }}>Lull</span>
-          <button className="lull-btn" aria-label={lightUI ? "Switch to dark" : "Switch to light"} onClick={() => setLight((v) => !v)} style={{ position: "absolute", left: 0, padding: 8, opacity: 0.7, display: (night || onWhite) ? "none" : "flex" }}>{lightUI ? <Moon size={19} /> : <Sun size={19} />}</button>
+          <button className="lull-btn" aria-label={lightUI ? "Switch to dark" : "Switch to light"} onClick={() => setLight((v) => !v)} style={{ position: "absolute", left: 0, padding: 8, opacity: 0.7, display: (night || onWhite || onDark) ? "none" : "flex" }}>{lightUI ? <Moon size={19} /> : <Sun size={19} />}</button>
           <button className="lull-btn" aria-label={soundOn ? "Mute sound" : "Unmute sound"} aria-pressed={soundOn} onClick={toggleSound} style={{ position: "absolute", right: 0, padding: 8, opacity: 0.7, display: "flex" }}>{soundOn ? <Volume2 size={20} /> : <VolumeX size={20} />}</button>
         </div>
 
@@ -572,7 +633,11 @@ export default function Lull() {
                     idle brightness shimmer, and a breath-brightness during a session (cool/inhale brighter,
                     warm/exhale softer). No mix-blend-mode: the parent's transform isolates it, so we mask the
                     near-black edge to blend into the ground instead. */}
-                {selectedOrb.kind === "image" ? (
+                {selectedOrb.kind === "particles" ? (
+                  <div style={{ position: "absolute", inset: 0, borderRadius: "50%", overflow: "hidden", zIndex: 2, filter: active ? (isCool ? "brightness(1.12) saturate(1.05)" : "brightness(0.92)") : undefined, animation: (idle && !prefersReduced) ? "orbGlow 8s ease-in-out infinite" : "none", transition: active ? `filter ${orb.dur}s ${orb.ease || "ease"}` : "filter 1s ease" }}>
+                    <canvas ref={particleRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }} />
+                  </div>
+                ) : selectedOrb.kind === "image" ? (
                   <div style={{ position: "absolute", inset: 0, borderRadius: "50%", overflow: "hidden", isolation: "isolate", zIndex: 2, WebkitMaskImage: imgMask, maskImage: imgMask, filter: active ? (isCool ? "brightness(1.13) saturate(1.06)" : "brightness(0.9) saturate(1.0)") : undefined, animation: (idle && !prefersReduced) ? "orbGlow 7s ease-in-out infinite" : "none", transition: active ? `filter ${orb.dur}s ${orb.ease || "ease"}` : "filter 1s ease" }}>
                     {/* Two copies of the swirl counter-rotate and screen-blend so the ribbons churn.
                         `zoom` crops past the glass rim/gloss for a bubble-less, free-flowing look. */}
