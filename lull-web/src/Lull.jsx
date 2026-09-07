@@ -119,11 +119,11 @@ const ORBS = {
   glacier: { name: "Glacier", tag: "Icy current",   kind: "image", src: "/assets/orb-swirl-c.webp", price: 0.5, zoom: 1.5, noBubble: true, hue: 310, sat: 1.1,  ring: ["#5ee0ff", "#66d6e6", "#7fb8ff"], bg: "radial-gradient(125% 120% at 50% 16%, #0a2432 0%, #06131c 58%, #03080e 100%)" },
   nebula:  { name: "Nebula",  tag: "Cosmic violet", kind: "image", src: "/assets/orb-swirl-d.webp", price: 0.5, zoom: 1.5, noBubble: true, hue: 55,  sat: 1.12, ring: ["#b46eff", "#8a6eff", "#ff6ecd"], bg: "radial-gradient(125% 120% at 50% 16%, #1c1038 0%, #0e0722 58%, #060310 100%)" },
   // Particle spheres — a rotating cloud of glowing dots on a deep black ground.
-  solstice: { name: "Solstice", tag: "Ember dust",   kind: "particles", dark: true, price: 0.5, palette: { top: [255, 150, 55],  mid: [255, 180, 120], bot: [255, 255, 255] }, ring: ["#ffb04a", "#ff8a3c", "#fff0d6"], bg: "radial-gradient(120% 120% at 50% 30%, #140b06 0%, #080402 60%, #020101 100%)" },
-  frost:    { name: "Frost",    tag: "Ice dust",     kind: "particles", dark: true, price: 0.5, palette: { top: [120, 205, 255], mid: [180, 228, 255], bot: [255, 255, 255] }, ring: ["#7fd0ff", "#b0e6ff", "#ffffff"], bg: "radial-gradient(120% 120% at 50% 30%, #06121e 0%, #03080f 60%, #010305 100%)" },
-  nova:     { name: "Nova",     tag: "Stardust",     kind: "particles", dark: true, price: 0.5, palette: { top: [190, 120, 255], mid: [230, 140, 230], bot: [255, 155, 210] }, ring: ["#b46eff", "#e08aff", "#ff8ec8"], bg: "radial-gradient(120% 120% at 50% 30%, #120826 0%, #080414 60%, #030108 100%)" },
+  solstice: { name: "Solstice", tag: "Ember dust",   kind: "particles", dark: true, price: 0.5, thumb: "/assets/orb-thumb-solstice.png", palette: { top: [255, 150, 55],  mid: [255, 180, 120], bot: [255, 255, 255] }, ring: ["#ffb04a", "#ff8a3c", "#fff0d6"], bg: "radial-gradient(120% 120% at 50% 30%, #140b06 0%, #080402 60%, #020101 100%)" },
+  frost:    { name: "Frost",    tag: "Ice dust",     kind: "particles", dark: true, price: 0.5, thumb: "/assets/orb-thumb-frost.png", palette: { top: [120, 205, 255], mid: [180, 228, 255], bot: [255, 255, 255] }, ring: ["#7fd0ff", "#b0e6ff", "#ffffff"], bg: "radial-gradient(120% 120% at 50% 30%, #06121e 0%, #03080f 60%, #010305 100%)" },
+  nova:     { name: "Nova",     tag: "Stardust",     kind: "particles", dark: true, price: 0.5, thumb: "/assets/orb-thumb-nova.png", palette: { top: [190, 120, 255], mid: [230, 140, 230], bot: [255, 155, 210] }, ring: ["#b46eff", "#e08aff", "#ff8ec8"], bg: "radial-gradient(120% 120% at 50% 30%, #120826 0%, #080414 60%, #030108 100%)" },
   // Plasma sphere — a rim-lit energy ball with a moving, crackled surface (animated SVG turbulence).
-  ion:      { name: "Ion",      tag: "Plasma sphere", kind: "plasma", dark: true, price: 0.5, ring: ["#7fd0ff", "#4fb0ff", "#bfeeff"], bg: "radial-gradient(120% 120% at 50% 32%, #06111f 0%, #030812 60%, #010307 100%)" },
+  ion:      { name: "Ion",      tag: "Plasma sphere", kind: "plasma", dark: true, price: 0.5, thumb: "/assets/orb-thumb-ion.png", ring: ["#7fd0ff", "#4fb0ff", "#bfeeff"], bg: "radial-gradient(120% 120% at 50% 32%, #06111f 0%, #030812 60%, #010307 100%)" },
 };
 const ORB_ORDER = ["aurora", "bloom", "ember", "verdant", "blossom", "glacier", "nebula", "solstice", "frost", "nova", "ion"];
 const ORB_KEY = "lull.orb.v1";
@@ -134,6 +134,7 @@ function fmtPrice(p) { return p ? "$" + p.toFixed(2) : "Free"; }
 function orbChip(id, size) {
   const o = ORBS[id] || ORBS.aurora;
   const base = { width: size, height: size, borderRadius: "50%", flex: "0 0 auto", overflow: "hidden", boxShadow: "0 2px 10px rgba(0,0,0,0.22)" };
+  if (o.thumb) return <div style={base}><img src={o.thumb} alt="" draggable="false" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /></div>;
   if (o.kind === "image") return <div style={base}><img src={o.src} alt="" draggable="false" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transform: o.zoom ? `scale(${o.zoom})` : undefined, transformOrigin: "center", filter: o.hue ? `hue-rotate(${o.hue}deg) saturate(${o.sat || 1.1})` : undefined }} /></div>;
   if (o.kind === "particles") { const t = o.palette.top.join(","), bt = o.palette.bot.join(","); return <div style={{ ...base, background: `radial-gradient(58% 52% at 50% 33%, rgba(${t},0.95), transparent 62%), radial-gradient(54% 50% at 50% 78%, rgba(${bt},0.92), transparent 62%), #060409` }} />; }
   if (o.kind === "plasma") return <div style={{ ...base, background: "radial-gradient(circle at 44% 38%, #12336a 0%, #0a1428 62%), radial-gradient(circle at 50% 50%, transparent 74%, rgba(150,232,255,0.9) 93%, transparent 100%), #050308" }} />;
