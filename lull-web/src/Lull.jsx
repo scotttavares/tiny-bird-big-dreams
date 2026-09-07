@@ -915,7 +915,7 @@ export default function Lull() {
 
         {breatheDone && (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", gap: 10, width: "100%" }}>
-            <div style={{ width: 96, height: 96, borderRadius: "50%", marginBottom: 14, backgroundImage: th.warmGrad, boxShadow: `0 0 60px ${th.ringTo}66` }} />
+            <div style={{ marginBottom: 14, borderRadius: "50%", boxShadow: `0 0 60px ${(selectedOrb.ring && selectedOrb.ring[0]) || th.ringTo}66` }}>{orbChip(orbId, 96)}</div>
             <div style={{ fontSize: 28, fontWeight: 300, letterSpacing: 0.5 }}>That's it.</div>
             <p style={{ fontSize: 14, opacity: 0.6, margin: 0, maxWidth: 260 }}>You gave yourself {durationMin} {durationMin === 1 ? "minute" : "minutes"}. Carry it with you.</p>
             {(() => { const w = minutesSince(sessions, Date.now() - 7 * DAY_MS); return w > 0 ? (<p style={{ fontSize: 12.5, opacity: 0.42, margin: "6px 0 0", letterSpacing: 0.3 }}>{`${w} minutes to breathe this week.`}</p>) : null; })()}
