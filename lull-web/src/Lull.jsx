@@ -94,8 +94,8 @@ const DEFAULT_DUR = { breathe: 3, sleep: 15 };
 // Soundscapes: three ship free; others unlock via a sound pack (or the Everything bundle).
 // Each is generated procedurally in createSoundscape — no audio files. `pack` names the pack it belongs to.
 const SOUND = [
-  { id: "bowls", name: "Bowls", tag: "Singing bowls", glyph: "🎵", tint: "#9a86ff", free: true },
-  { id: "handpan", name: "Handpan", tag: "Hand drum", glyph: "🪘", tint: "#ffb27a", free: true },
+  { id: "bowls", name: "Bowls", tag: "Singing bowls", glyph: "🎵", tint: "#9a86ff", img: "/assets/sound-bowls.webp", free: true },
+  { id: "handpan", name: "Handpan", tag: "Hand drum", glyph: "🪘", tint: "#ffb27a", img: "/assets/sound-handpan.webp", free: true },
   { id: "binaural", name: "Binaural", tag: "Deep tones", glyph: "🎧", tint: "#6fb2ff", free: true },
   { id: "rain", name: "Rain", tag: "Steady rainfall", glyph: "🌧️", tint: "#7fa8d8", pack: "nature" },
   { id: "ocean", name: "Ocean", tag: "Rolling waves", glyph: "🌊", tint: "#4fc4d0", pack: "nature" },
