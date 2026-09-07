@@ -376,10 +376,12 @@ export default function Lull() {
   const PATTERNS = useMemo(() => {
     const P = {
       breathe: {
-        calm: { name: "Calm", ratio: "4 · 7 · 8", phases: [{ key: "inhale", label: "Breathe in", dur: 4, scale: HI, tone: "cool" }, { key: "hold", label: "Hold", dur: 7, scale: HI, tone: "cool" }, { key: "exhale", label: "Breathe out", dur: 8, scale: LO, tone: "warm" }] },
-        steady: { name: "Steady", ratio: "4 · 4 · 4 · 4", phases: [{ key: "inhale", label: "Breathe in", dur: 4, scale: HI, tone: "cool" }, { key: "hold", label: "Hold", dur: 4, scale: HI, tone: "cool" }, { key: "exhale", label: "Breathe out", dur: 4, scale: LO, tone: "warm" }, { key: "hold", label: "Hold", dur: 4, scale: LO, tone: "warm" }] },
-        ease: { name: "Ease", ratio: "4 · 6", phases: [{ key: "inhale", label: "Breathe in", dur: 4, scale: HI, tone: "cool" }, { key: "exhale", label: "Breathe out", dur: 6, scale: LO, tone: "warm" }] },
-        coherence: { name: "Coherence", ratio: "5 · 5", phases: [{ key: "inhale", label: "Breathe in", dur: 5, scale: HI, tone: "cool" }, { key: "exhale", label: "Breathe out", dur: 5, scale: LO, tone: "warm" }] },
+        calm: { name: "Calm", ratio: "4 · 7 · 8", goal: "Ease anxiety", phases: [{ key: "inhale", label: "Breathe in", dur: 4, scale: HI, tone: "cool" }, { key: "hold", label: "Hold", dur: 7, scale: HI, tone: "cool" }, { key: "exhale", label: "Breathe out", dur: 8, scale: LO, tone: "warm" }] },
+        steady: { name: "Steady", ratio: "4 · 4 · 4 · 4", goal: "Find focus", phases: [{ key: "inhale", label: "Breathe in", dur: 4, scale: HI, tone: "cool" }, { key: "hold", label: "Hold", dur: 4, scale: HI, tone: "cool" }, { key: "exhale", label: "Breathe out", dur: 4, scale: LO, tone: "warm" }, { key: "hold", label: "Hold", dur: 4, scale: LO, tone: "warm" }] },
+        ease: { name: "Ease", ratio: "4 · 6", goal: "Everyday calm", phases: [{ key: "inhale", label: "Breathe in", dur: 4, scale: HI, tone: "cool" }, { key: "exhale", label: "Breathe out", dur: 6, scale: LO, tone: "warm" }] },
+        coherence: { name: "Coherence", ratio: "5 · 5", goal: "Find balance", phases: [{ key: "inhale", label: "Breathe in", dur: 5, scale: HI, tone: "cool" }, { key: "exhale", label: "Breathe out", dur: 5, scale: LO, tone: "warm" }] },
+        // SOS: the physiological sigh — a double inhale then a long exhale, the fastest way to down-shift stress.
+        sigh: { name: "Reset", ratio: "Physiological sigh", goal: "Calm fast", sos: true, phases: [{ key: "inhale", label: "Breathe in", dur: 2.2, scale: HI * 0.94, tone: "cool" }, { key: "inhale", label: "Sip more air", dur: 1.1, scale: HI, tone: "cool" }, { key: "exhale", label: "Long exhale", dur: 6.7, scale: LO, tone: "warm" }] },
       },
       sleep: {
         drift: { name: "Drift", ratio: "4 · 8", phases: [{ key: "inhale", label: "Breathe in", dur: 4, scale: HI, tone: "cool" }, { key: "exhale", label: "Let go", dur: 8, scale: LO, tone: "warm" }] },
@@ -527,16 +529,21 @@ export default function Lull() {
     }, 200);
   }, []);
 
-  const startSession = () => {
-    const p = PATTERNS[mode][patternId];
-    phasesRef.current = p.phases; idxRef.current = 0; elapsedRef.current = 0; targetRef.current = durationMin * 60;
+  const startSession = (patOverride, durSecOverride) => {
+    // patOverride is a string only when called programmatically (e.g. the SOS button); as an onClick
+    // handler the first arg is the event, which we ignore and fall back to the chosen pattern.
+    const pid = (typeof patOverride === "string" && PATTERNS[mode][patOverride]) ? patOverride : patternId;
+    const p = PATTERNS[mode][pid]; if (!p) return;
+    if (pid !== patternId) { setPatternId(pid); patternIdRef.current = pid; }
+    phasesRef.current = p.phases; idxRef.current = 0; elapsedRef.current = 0;
+    targetRef.current = (typeof durSecOverride === "number" && durSecOverride > 0) ? durSecOverride : durationMin * 60;
     pausedRef.current = false; setPaused(false); setRemaining(targetRef.current); setProgress(0); setScreen("active");
     ensureAudio(); if (soundRef.current) { buildAmbience(); bowl("start"); }
     startTick(); runPhase();
   };
   const pauseSession = () => { pausedRef.current = true; setPaused(true); if (phaseTimeout.current) clearTimeout(phaseTimeout.current); setPhaseLabel("Paused"); setOrb({ scale: prefersReduced ? 0.95 : 0.92, dur: 0.8, ease: "ease" }); softenAmbience(); };
   const resumeSession = () => { pausedRef.current = false; setPaused(false); ensureAudio(); if (soundRef.current && !scapeRef.current) buildAmbience(); runPhase(); };
-  const goHome = () => { clearTimers(); pausedRef.current = false; setPaused(false); teardownAmbience(0.9); setScreen("home"); setOrb({ scale: LO, dur: 1, ease: "ease" }); setRemaining(durationMin * 60); setProgress(0); };
+  const goHome = () => { clearTimers(); pausedRef.current = false; setPaused(false); teardownAmbience(0.9); setScreen("home"); setOrb({ scale: LO, dur: 1, ease: "ease" }); setRemaining(durationMin * 60); setProgress(0); setPatternId((pid) => pid === "sigh" ? DEFAULT_PATTERN[mode] : pid); };
   function finishSession() { clearTimers(); pausedRef.current = false; setPaused(false); if (modeRef.current === "breathe") bowl("done"); teardownAmbience(modeRef.current === "sleep" ? 3.4 : 1.6); try { const entry = { t: Date.now(), mode: modeRef.current, pattern: patternIdRef.current, min: Math.max(1, Math.round(targetRef.current / 60)) }; setSessions((prev) => { const next = [...prev, entry]; saveHist(next); return next; }); } catch (e) {} setScreen("done"); }
   const switchMode = (m) => { if (m === mode) return; clearTimers(); teardownAmbience(0.4); setMode(m); setScreen("home"); setPatternId(DEFAULT_PATTERN[m]); setDurationMin(DEFAULT_DUR[m]); setRemaining(DEFAULT_DUR[m] * 60); setProgress(0); setTone("cool"); setOrb({ scale: LO, dur: 1, ease: "ease" }); };
   const toggleSound = () => {
@@ -874,8 +881,15 @@ export default function Lull() {
                 <button key={id} className="lull-dot lull-btn" aria-label={`Orb colour: ${t.name}`} aria-pressed={sel} title={t.name} onClick={() => setThemeId(id)} style={{ width: 30, height: 30, borderRadius: "50%", padding: 0, backgroundImage: t.swatch, border: "1px solid " + wa(0.3), boxShadow: sel ? (lightUI ? "0 0 0 2px rgba(70,50,140,0.8), 0 3px 12px rgba(80,60,140,0.25)" : "0 0 0 2px rgba(255,255,255,0.9), 0 3px 12px rgba(0,0,0,0.45)") : (lightUI ? "0 2px 8px rgba(80,60,140,0.2)" : "0 2px 8px rgba(0,0,0,0.35)"), transform: sel ? "scale(1.14)" : "scale(1)", transition: "transform .2s ease, box-shadow .2s ease" }} />); })}
             </div>
             )}
+            {mode === "breathe" && (
+              <button className="lull-btn" onClick={() => startSession("sigh", 90)} aria-label="Reset — a 90-second physiological-sigh session to calm quickly" style={{ alignSelf: "center", display: "flex", alignItems: "center", gap: 9, padding: "9px 17px 9px 15px", borderRadius: 999, background: "linear-gradient(180deg, " + wa(0.11) + ", " + wa(0.04) + ")", border: "1px solid " + wa(0.2), color: ink, marginBottom: 2 }}>
+                <span aria-hidden style={{ fontSize: 14, opacity: 0.85 }}>✦</span>
+                <span style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: 0.3 }}>Reset</span>
+                <span style={{ fontSize: 11.5, opacity: 0.58, letterSpacing: 0.2 }}>· 90-sec calm</span>
+              </button>
+            )}
             <div style={segWrap}>
-              {Object.entries(pats).map(([id, p]) => { const sel = patternId === id; return (<button key={id} className="lull-seg lull-btn" aria-pressed={sel} onClick={() => setPatternId(id)} style={seg(sel)}><span style={{ fontSize: 14, fontWeight: 500 }}>{p.name}</span><span style={{ fontSize: 11, opacity: 0.7, letterSpacing: 1 }}>{p.ratio}</span></button>); })}
+              {Object.entries(pats).filter(([id]) => id !== "sigh").map(([id, p]) => { const sel = patternId === id; return (<button key={id} className="lull-seg lull-btn" aria-pressed={sel} onClick={() => setPatternId(id)} style={seg(sel)}><span style={{ fontSize: 14, fontWeight: 500 }}>{p.name}</span><span style={{ fontSize: 10.5, opacity: 0.6, letterSpacing: 0.3 }}>{p.goal || p.ratio}</span></button>); })}
             </div>
             <button className="lull-btn" onClick={openCustom} style={{ alignSelf: "center", padding: "2px 0 0", fontSize: 12.5, letterSpacing: 0.4, color: inkA(0.5) }}>{customPat ? "✎ Edit your pattern" : "✎ Make your own"}</button>
             <div style={segWrap}>
