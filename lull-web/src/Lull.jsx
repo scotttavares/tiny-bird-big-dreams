@@ -122,10 +122,8 @@ const ORBS = {
   solstice: { name: "Solstice", tag: "Ember dust",   kind: "particles", dark: true, price: 0.5, thumb: "/assets/orb-thumb-solstice.png", palette: { top: [255, 150, 55],  mid: [255, 180, 120], bot: [255, 255, 255] }, ring: ["#ffb04a", "#ff8a3c", "#fff0d6"], bg: "radial-gradient(120% 120% at 50% 30%, #140b06 0%, #080402 60%, #020101 100%)" },
   frost:    { name: "Frost",    tag: "Ice dust",     kind: "particles", dark: true, price: 0.5, thumb: "/assets/orb-thumb-frost.png", palette: { top: [120, 205, 255], mid: [180, 228, 255], bot: [255, 255, 255] }, ring: ["#7fd0ff", "#b0e6ff", "#ffffff"], bg: "radial-gradient(120% 120% at 50% 30%, #06121e 0%, #03080f 60%, #010305 100%)" },
   nova:     { name: "Nova",     tag: "Stardust",     kind: "particles", dark: true, price: 0.5, thumb: "/assets/orb-thumb-nova.png", palette: { top: [190, 120, 255], mid: [230, 140, 230], bot: [255, 155, 210] }, ring: ["#b46eff", "#e08aff", "#ff8ec8"], bg: "radial-gradient(120% 120% at 50% 30%, #120826 0%, #080414 60%, #030108 100%)" },
-  // Plasma sphere — a rim-lit energy ball with a moving, crackled surface (animated SVG turbulence).
-  ion:      { name: "Ion",      tag: "Plasma sphere", kind: "plasma", dark: true, price: 0.5, thumb: "/assets/orb-thumb-ion.png", ring: ["#7fd0ff", "#4fb0ff", "#bfeeff"], bg: "radial-gradient(120% 120% at 50% 32%, #06111f 0%, #030812 60%, #010307 100%)" },
 };
-const ORB_ORDER = ["aurora", "bloom", "ember", "verdant", "blossom", "glacier", "nebula", "solstice", "frost", "nova", "ion"];
+const ORB_ORDER = ["aurora", "bloom", "ember", "verdant", "blossom", "glacier", "nebula", "solstice", "frost", "nova"];
 // ---------- packs & bundle ----------
 // Orbs are sold in themed packs (one price unlocks every orb in the pack), plus a single
 // "Everything" bundle that unlocks all orbs — and every future orb & sound we add — for one
@@ -134,7 +132,7 @@ const ORB_ORDER = ["aurora", "bloom", "ember", "verdant", "blossom", "glacier", 
 // seam as unlockOrb.
 const PACKS = {
   swirls: { name: "Swirls Pack", tag: "Five flowing colour orbs, each with its own sky", price: 0.99, orbs: ["ember", "verdant", "blossom", "glacier", "nebula"] },
-  cosmos: { name: "Cosmos Pack", tag: "Four particle & plasma orbs on deep space", price: 0.99, orbs: ["solstice", "frost", "nova", "ion"] },
+  cosmos: { name: "Cosmos Pack", tag: "Three particle orbs on deep space", price: 0.99, orbs: ["solstice", "frost", "nova"] },
 };
 const PACK_ORDER = ["swirls", "cosmos"];
 const BUNDLE = { name: "Everything", tag: "Every orb — and every future orb & sound we add", price: 3.99 };
@@ -486,7 +484,10 @@ export default function Lull() {
   const cA = conic(useCool, stl.armsA, night ? 0.72 : 0.85), wA = conic(useWarm, stl.armsA, night ? 0.74 : 0.85);
   const cB = conic(useCool, stl.armsB, night ? 0.58 : 0.7), wB = conic(useWarm, stl.armsB, night ? 0.6 : 0.7);
 
-  const S = 312, ORB = 264, R = 142;
+  // ORB is sized so a full inhale (×HI) lands just inside the ring, not past it: 234 × 1.18 ≈ 276,
+  // inside the ring's ~281px interior (2·R − stroke). The breath fills the ring at its peak and never
+  // crosses the line, while keeping the LO→HI breath ratio intact.
+  const S = 312, ORB = 234, R = 142;
   const C = 2 * Math.PI * R;
   const pats = PATTERNS[mode];
 
@@ -824,7 +825,7 @@ export default function Lull() {
                     <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", padding: "3px 9px", borderRadius: 999, background: wa(0.15), color: inkA(0.82) }}>Best value</span>
                   </div>
                   <div style={{ display: "flex", marginBottom: 14 }}>
-                    {["aurora", "ember", "blossom", "nova", "ion"].map((id, i) => (
+                    {["aurora", "ember", "blossom", "nova", "frost"].map((id, i) => (
                       <div key={id} style={{ marginLeft: i ? -14 : 0, borderRadius: "50%", boxShadow: "0 0 0 2.5px rgba(8,5,16,0.92)" }}>{orbChip(id, 46)}</div>
                     ))}
                   </div>
