@@ -107,12 +107,12 @@ function saveCustom(c) { try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(c
 // kind "image": a generated orb picture (masked, counter-rotating swirl). kind "glow": a coded
 // symmetric ring of the `colors` palette on a white (white:true) or deep (white:false) ground.
 const ORBS = {
-  aurora: { name: "Aurora", tag: "Flowing swirl", kind: "image", src: "/assets/orb-glass.webp", white: false, price: 0, zoom: 1.5, noBubble: true },
-  halo: { name: "Halo", tag: "Soft Apple glow", kind: "glow", white: true, price: 0.5, colors: ["120,168,255", "150,150,255", "196,150,255", "255,150,205", "130,235,205"] },
-  ember: { name: "Ember", tag: "Warm sunrise", kind: "glow", white: true, price: 0.5, colors: ["255,170,120", "255,120,150", "255,205,120", "255,140,185", "255,190,150"] },
-  tide: { name: "Tide", tag: "Deep ocean", kind: "glow", white: false, price: 0.5, colors: ["80,200,255", "70,160,255", "90,240,210", "120,150,255", "110,220,235"] },
-  nebula: { name: "Nebula", tag: "Cosmic violet", kind: "glow", white: false, price: 0.5, colors: ["180,110,255", "120,120,255", "255,110,205", "150,90,255", "110,180,255"] },
-  meadow: { name: "Meadow", tag: "Quiet green", kind: "glow", white: true, price: 0.5, colors: ["120,220,150", "150,235,190", "110,200,255", "200,235,130", "140,225,205"] },
+  aurora: { name: "Aurora", tag: "Flowing swirl", kind: "image", src: "/assets/orb-glass.webp", white: false, price: 0, zoom: 1.5, noBubble: true, ring: ["#5ec8ff", "#9a7bff", "#ff6ec0"] },
+  halo: { name: "Halo", tag: "Soft Apple glow", kind: "glow", white: true, price: 0.5, colors: ["120,168,255", "150,150,255", "196,150,255", "255,150,205", "130,235,205"], ring: ["#8fb4ff", "#c39bff", "#ff9ecd"] },
+  ember: { name: "Ember", tag: "Warm sunrise", kind: "glow", white: true, price: 0.5, colors: ["255,170,120", "255,120,150", "255,205,120", "255,140,185", "255,190,150"], ring: ["#ffce82", "#ffa678", "#ff789b"] },
+  tide: { name: "Tide", tag: "Deep ocean", kind: "glow", white: false, price: 0.5, colors: ["80,200,255", "70,160,255", "90,240,210", "120,150,255", "110,220,235"], ring: ["#5ac8ff", "#5a9bff", "#5af0d2"] },
+  nebula: { name: "Nebula", tag: "Cosmic violet", kind: "glow", white: false, price: 0.5, colors: ["180,110,255", "120,120,255", "255,110,205", "150,90,255", "110,180,255"], ring: ["#b46eff", "#7d6eff", "#ff6ecd"] },
+  meadow: { name: "Meadow", tag: "Quiet green", kind: "glow", white: true, price: 0.5, colors: ["120,220,150", "150,235,190", "110,200,255", "200,235,130", "140,225,205"], ring: ["#7adca0", "#a8e878", "#6ec8ff"] },
 };
 const ORB_ORDER = ["aurora", "halo", "ember", "tide", "nebula", "meadow"];
 const ORB_KEY = "lull.orb.v1";
@@ -402,6 +402,8 @@ export default function Lull() {
   const pats = PATTERNS[mode];
 
   const selectedOrb = ORBS[orbId] || ORBS.aurora;
+  // The progress ring's gradient matches the selected orb's own palette (falls back to the theme).
+  const ringColors = selectedOrb.ring || [ringFrom, ringTo];
   const onWhite = !!selectedOrb.white && !night;   // Apple-glow orb sits on a clean white ground
   const daylight = light && !night;                 // user's manual light theme
   const lightUI = onWhite || daylight;              // dark ink on a white or light ground
@@ -538,7 +540,7 @@ export default function Lull() {
               <svg width={S} height={S} style={{ position: "absolute", inset: 0, transform: "rotate(-90deg)", zIndex: 3, pointerEvents: "none" }}>
                 <circle cx={S / 2} cy={S / 2} r={R} fill="none" stroke={inkA(0.14)} strokeWidth={2} />
                 <circle cx={S / 2} cy={S / 2} r={R} fill="none" stroke="url(#ring)" strokeWidth={3} strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - (active ? progress : screen === "done" ? 1 : 0))} style={{ transition: "stroke-dashoffset .3s linear", opacity: active || screen === "done" ? 1 : 0 }} />
-                <defs><linearGradient id="ring" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor={ringFrom} /><stop offset="100%" stopColor={ringTo} /></linearGradient></defs>
+                <defs><linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">{ringColors.map((c, i, a) => (<stop key={i} offset={`${a.length === 1 ? 0 : (i / (a.length - 1)) * 100}%`} stopColor={c} />))}</linearGradient></defs>
               </svg>
 
               <div className={idle ? "orb-idle" : ""} style={{ width: ORB, height: ORB, borderRadius: "50%", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", willChange: "transform", ...(idle ? {} : { transform: `scale(${orb.scale})`, transition: `transform ${orb.dur}s ${orb.ease}` }) }}>
