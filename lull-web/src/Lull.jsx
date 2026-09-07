@@ -144,8 +144,11 @@ const ORBS = {
   solstice: { name: "Solstice", tag: "Ember dust",   kind: "particles", dark: true, price: 0.5, thumb: "/assets/orb-thumb-solstice.png", palette: { top: [255, 150, 55],  mid: [255, 180, 120], bot: [255, 255, 255] }, ring: ["#ffb04a", "#ff8a3c", "#fff0d6"], bg: "radial-gradient(120% 120% at 50% 30%, #140b06 0%, #080402 60%, #020101 100%)" },
   frost:    { name: "Frost",    tag: "Ice dust",     kind: "particles", dark: true, price: 0.5, thumb: "/assets/orb-thumb-frost.png", palette: { top: [120, 205, 255], mid: [180, 228, 255], bot: [255, 255, 255] }, ring: ["#7fd0ff", "#b0e6ff", "#ffffff"], bg: "radial-gradient(120% 120% at 50% 30%, #06121e 0%, #03080f 60%, #010305 100%)" },
   nova:     { name: "Nova",     tag: "Stardust",     kind: "particles", dark: true, price: 0.5, thumb: "/assets/orb-thumb-nova.png", palette: { top: [190, 120, 255], mid: [230, 140, 230], bot: [255, 155, 210] }, ring: ["#b46eff", "#e08aff", "#ff8ec8"], bg: "radial-gradient(120% 120% at 50% 30%, #120826 0%, #080414 60%, #030108 100%)" },
+  // Radiant image orbs — a pinwheel bloom and a wispy flare, on their own deep grounds.
+  iris:     { name: "Iris",     tag: "Radiant bloom", kind: "image", src: "/assets/orb-iris.webp", price: 0.5, zoom: 1.35, noBubble: true, hue: 0, ring: ["#4fd0ff", "#b46eff", "#ff7ad0"], bg: "radial-gradient(125% 120% at 50% 16%, #16123a 0%, #0a0720 58%, #050310 100%)" },
+  wisp:     { name: "Wisp",     tag: "Wisps of light", kind: "image", src: "/assets/orb-wisp.webp", price: 0.5, zoom: 1.35, noBubble: true, hue: 0, ring: ["#6ea8ff", "#a06eff", "#ff6ec8"], bg: "radial-gradient(120% 120% at 50% 30%, #0e0a2a 0%, #070518 60%, #030110 100%)" },
 };
-const ORB_ORDER = ["aurora", "bloom", "ember", "verdant", "blossom", "glacier", "nebula", "solstice", "frost", "nova"];
+const ORB_ORDER = ["aurora", "bloom", "ember", "verdant", "blossom", "glacier", "nebula", "iris", "solstice", "frost", "nova", "wisp"];
 // ---------- packs & bundle ----------
 // Orbs are sold in themed packs (one price unlocks every orb in the pack), plus a single
 // "Everything" bundle that unlocks all orbs — and every future orb & sound we add — for one
@@ -153,8 +156,8 @@ const ORB_ORDER = ["aurora", "bloom", "ember", "verdant", "blossom", "glacier", 
 // (Apple In-App Purchase on iOS, Stripe on web) wires into unlockPack/unlockBundle — the same
 // seam as unlockOrb.
 const PACKS = {
-  swirls: { name: "Swirls Pack", tag: "Five flowing colour orbs, each with its own sky", price: 0.99, orbs: ["ember", "verdant", "blossom", "glacier", "nebula"] },
-  cosmos: { name: "Cosmos Pack", tag: "Three particle orbs on deep space", price: 0.99, orbs: ["solstice", "frost", "nova"] },
+  swirls: { name: "Swirls Pack", tag: "Six flowing colour orbs, each with its own sky", price: 0.99, orbs: ["ember", "verdant", "blossom", "glacier", "nebula", "iris"] },
+  cosmos: { name: "Cosmos Pack", tag: "Four cosmic orbs on deep space", price: 0.99, orbs: ["solstice", "frost", "nova", "wisp"] },
 };
 const PACK_ORDER = ["swirls", "cosmos"];
 const BUNDLE = { name: "Everything", tag: "Every orb and sound — and every future one we add", price: 3.99 };
