@@ -119,8 +119,10 @@ const ORBS = {
   solstice: { name: "Solstice", tag: "Ember dust",   kind: "particles", dark: true, price: 0.5, palette: { top: [255, 150, 55],  mid: [255, 180, 120], bot: [255, 255, 255] }, ring: ["#ffb04a", "#ff8a3c", "#fff0d6"] },
   frost:    { name: "Frost",    tag: "Ice dust",     kind: "particles", dark: true, price: 0.5, palette: { top: [120, 205, 255], mid: [180, 228, 255], bot: [255, 255, 255] }, ring: ["#7fd0ff", "#b0e6ff", "#ffffff"] },
   nova:     { name: "Nova",     tag: "Stardust",     kind: "particles", dark: true, price: 0.5, palette: { top: [190, 120, 255], mid: [230, 140, 230], bot: [255, 155, 210] }, ring: ["#b46eff", "#e08aff", "#ff8ec8"] },
+  // Plasma sphere — a rim-lit energy ball with a moving, crackled surface (animated SVG turbulence).
+  ion:      { name: "Ion",      tag: "Plasma sphere", kind: "plasma", dark: true, price: 0.5, ring: ["#7fd0ff", "#4fb0ff", "#bfeeff"] },
 };
-const ORB_ORDER = ["aurora", "ember", "verdant", "blossom", "glacier", "nebula", "solstice", "frost", "nova"];
+const ORB_ORDER = ["aurora", "ember", "verdant", "blossom", "glacier", "nebula", "solstice", "frost", "nova", "ion"];
 const ORB_KEY = "lull.orb.v1";
 const OWNED_KEY = "lull.orbsOwned.v1";
 function loadOrb() { try { const v = localStorage.getItem(ORB_KEY); return v && ORBS[v] ? v : "aurora"; } catch (e) { return "aurora"; } }
@@ -131,6 +133,7 @@ function orbChip(id, size) {
   const base = { width: size, height: size, borderRadius: "50%", flex: "0 0 auto", overflow: "hidden", boxShadow: "0 2px 10px rgba(0,0,0,0.22)" };
   if (o.kind === "image") return <div style={base}><img src={o.src} alt="" draggable="false" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transform: o.zoom ? `scale(${o.zoom})` : undefined, transformOrigin: "center", filter: o.hue ? `hue-rotate(${o.hue}deg) saturate(${o.sat || 1.1})` : undefined }} /></div>;
   if (o.kind === "particles") { const t = o.palette.top.join(","), bt = o.palette.bot.join(","); return <div style={{ ...base, background: `radial-gradient(58% 52% at 50% 33%, rgba(${t},0.95), transparent 62%), radial-gradient(54% 50% at 50% 78%, rgba(${bt},0.92), transparent 62%), #060409` }} />; }
+  if (o.kind === "plasma") return <div style={{ ...base, background: "radial-gradient(circle at 44% 38%, #12336a 0%, #0a1428 62%), radial-gradient(circle at 50% 50%, transparent 74%, rgba(150,232,255,0.9) 93%, transparent 100%), #050308" }} />;
   const cols = o.colors || ["140,180,255", "196,155,255", "255,158,203", "134,235,205"];
   const layers = cols.map((c, i, arr) => { const a = (i / arr.length) * Math.PI * 2 - Math.PI / 2; const x = (50 + Math.cos(a) * 24).toFixed(0); const y = (50 + Math.sin(a) * 24).toFixed(0); return `radial-gradient(42% 42% at ${x}% ${y}%, rgba(${c},0.92), transparent 60%)`; });
   layers.push("radial-gradient(30% 30% at 50% 50%, rgba(255,255,255,0.85), transparent 60%)");
@@ -466,7 +469,7 @@ export default function Lull() {
   // The progress ring's gradient matches the selected orb's own palette (falls back to the theme).
   const ringColors = selectedOrb.ring || [ringFrom, ringTo];
   const onWhite = !!selectedOrb.white && !night;   // Apple-glow orb sits on a clean white ground
-  const onDark = selectedOrb.kind === "particles"; // particle spheres glow on a deep-black ground
+  const onDark = !!selectedOrb.dark;               // particle / plasma orbs glow on a deep-black ground
   const daylight = light && !night;                 // user's manual light theme
   const lightUI = !onDark && (onWhite || daylight); // dark ink on a white/light ground; light ink on black
   const orbSrc = selectedOrb.kind === "image" ? selectedOrb.src : null;
@@ -633,7 +636,40 @@ export default function Lull() {
                     idle brightness shimmer, and a breath-brightness during a session (cool/inhale brighter,
                     warm/exhale softer). No mix-blend-mode: the parent's transform isolates it, so we mask the
                     near-black edge to blend into the ground instead. */}
-                {selectedOrb.kind === "particles" ? (
+                {selectedOrb.kind === "plasma" ? (
+                  <div style={{ position: "absolute", inset: 0, borderRadius: "50%", overflow: "hidden", zIndex: 2, filter: active ? (isCool ? "brightness(1.14) saturate(1.08)" : "brightness(0.92)") : undefined, animation: (idle && !prefersReduced) ? "orbGlow 8s ease-in-out infinite" : "none", transition: active ? `filter ${orb.dur}s ${orb.ease || "ease"}` : "filter 1s ease" }}>
+                    <svg viewBox="0 0 300 300" preserveAspectRatio="xMidYMid meet" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }}>
+                      <defs>
+                        <radialGradient id="plBody" cx="44%" cy="38%" r="68%">
+                          <stop offset="0%" stopColor="#060a18" /><stop offset="46%" stopColor="#0a1e46" /><stop offset="82%" stopColor="#164fc8" /><stop offset="96%" stopColor="#4fb0ff" /><stop offset="100%" stopColor="#9fe6ff" />
+                        </radialGradient>
+                        <radialGradient id="plRim" cx="50%" cy="50%" r="50%">
+                          <stop offset="80%" stopColor="rgba(120,220,255,0)" /><stop offset="92%" stopColor="rgba(150,232,255,0.35)" /><stop offset="97.5%" stopColor="rgba(150,235,255,0.98)" /><stop offset="100%" stopColor="rgba(120,200,255,0)" />
+                        </radialGradient>
+                        <radialGradient id="plCore" cx="50%" cy="52%" r="46%">
+                          <stop offset="0%" stopColor="rgba(2,6,18,0)" /><stop offset="60%" stopColor="rgba(2,6,18,0)" /><stop offset="100%" stopColor="rgba(2,6,18,0.55)" />
+                        </radialGradient>
+                        <filter id="plCrack" x="-10%" y="-10%" width="120%" height="120%">
+                          <feTurbulence type="turbulence" baseFrequency="0.09 0.06" numOctaves="5" seed="4" result="n">
+                            {!prefersReduced && (<animate attributeName="baseFrequency" dur="14s" values="0.08 0.055;0.1 0.07;0.08 0.055" repeatCount="indefinite" />)}
+                          </feTurbulence>
+                          <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  9 0 0 0 -4.6" result="a" />
+                          <feFlood floodColor="#e6faff" result="f" />
+                          <feComposite in="f" in2="a" operator="in" result="v" />
+                          <feGaussianBlur in="v" stdDeviation="0.2" />
+                        </filter>
+                        <clipPath id="plClip"><circle cx="150" cy="150" r="122" /></clipPath>
+                      </defs>
+                      <g clipPath="url(#plClip)">
+                        <circle cx="150" cy="150" r="122" fill="url(#plBody)" />
+                        <rect x="0" y="0" width="300" height="300" filter="url(#plCrack)" style={{ mixBlendMode: "screen", opacity: 0.6 }} />
+                        <circle cx="150" cy="150" r="122" fill="url(#plCore)" />
+                        <ellipse cx="118" cy="86" rx="52" ry="24" fill="rgba(200,235,255,0.10)" />
+                      </g>
+                      <circle cx="150" cy="150" r="122" fill="url(#plRim)" />
+                    </svg>
+                  </div>
+                ) : selectedOrb.kind === "particles" ? (
                   <div style={{ position: "absolute", inset: 0, borderRadius: "50%", overflow: "hidden", zIndex: 2, filter: active ? (isCool ? "brightness(1.12) saturate(1.05)" : "brightness(0.92)") : undefined, animation: (idle && !prefersReduced) ? "orbGlow 8s ease-in-out infinite" : "none", transition: active ? `filter ${orb.dur}s ${orb.ease || "ease"}` : "filter 1s ease" }}>
                     <canvas ref={particleRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }} />
                   </div>
