@@ -106,15 +106,17 @@ function saveCustom(c) { try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(c
 // Purchase on iOS, Stripe on web) is wired separately; `unlockOrb` is the single seam for it.
 // kind "image": a generated orb picture (masked, counter-rotating swirl). kind "glow": a coded
 // symmetric ring of the `colors` palette on a white (white:true) or deep (white:false) ground.
+// Every orb is a real generated swirl (Aurora quality). Three different swirl compositions
+// (glass/b/c/d), each hue-shifted into its own colour family and cropped bubble-less like Aurora.
 const ORBS = {
-  aurora: { name: "Aurora", tag: "Flowing swirl", kind: "image", src: "/assets/orb-glass.webp", white: false, price: 0, zoom: 1.5, noBubble: true, ring: ["#5ec8ff", "#9a7bff", "#ff6ec0"] },
-  halo: { name: "Halo", tag: "Soft Apple glow", kind: "glow", white: true, price: 0.5, colors: ["120,168,255", "150,150,255", "196,150,255", "255,150,205", "130,235,205"], ring: ["#8fb4ff", "#c39bff", "#ff9ecd"] },
-  ember: { name: "Ember", tag: "Warm sunrise", kind: "glow", white: true, price: 0.5, colors: ["255,170,120", "255,120,150", "255,205,120", "255,140,185", "255,190,150"], ring: ["#ffce82", "#ffa678", "#ff789b"] },
-  tide: { name: "Tide", tag: "Deep ocean", kind: "glow", white: false, price: 0.5, colors: ["80,200,255", "70,160,255", "90,240,210", "120,150,255", "110,220,235"], ring: ["#5ac8ff", "#5a9bff", "#5af0d2"] },
-  nebula: { name: "Nebula", tag: "Cosmic violet", kind: "glow", white: false, price: 0.5, colors: ["180,110,255", "120,120,255", "255,110,205", "150,90,255", "110,180,255"], ring: ["#b46eff", "#7d6eff", "#ff6ecd"] },
-  meadow: { name: "Meadow", tag: "Quiet green", kind: "glow", white: true, price: 0.5, colors: ["120,220,150", "150,235,190", "110,200,255", "200,235,130", "140,225,205"], ring: ["#7adca0", "#a8e878", "#6ec8ff"] },
+  aurora:  { name: "Aurora",  tag: "Flowing swirl", kind: "image", src: "/assets/orb-glass.webp",  white: false, price: 0,   zoom: 1.5, noBubble: true, hue: 0,             ring: ["#5ec8ff", "#9a7bff", "#ff6ec0"] },
+  ember:   { name: "Ember",   tag: "Warm fire",     kind: "image", src: "/assets/orb-swirl-d.webp", white: false, price: 0.5, zoom: 1.5, noBubble: true, hue: 150, sat: 1.15, ring: ["#ffd27a", "#ff9a5c", "#ff5c7d"] },
+  verdant: { name: "Verdant", tag: "Emerald bloom", kind: "image", src: "/assets/orb-swirl-c.webp", white: false, price: 0.5, zoom: 1.5, noBubble: true, hue: 260, sat: 1.12, ring: ["#7fe6a0", "#a8e86e", "#5ad0c0"] },
+  blossom: { name: "Blossom", tag: "Rose petals",   kind: "image", src: "/assets/orb-swirl-b.webp", white: false, price: 0.5, zoom: 1.5, noBubble: true, hue: 90,  sat: 1.12, ring: ["#ff8fbf", "#ff6ea0", "#ffa8d8"] },
+  glacier: { name: "Glacier", tag: "Icy current",   kind: "image", src: "/assets/orb-swirl-c.webp", white: false, price: 0.5, zoom: 1.5, noBubble: true, hue: 310, sat: 1.1,  ring: ["#5ee0ff", "#66d6e6", "#7fb8ff"] },
+  nebula:  { name: "Nebula",  tag: "Cosmic violet", kind: "image", src: "/assets/orb-swirl-d.webp", white: false, price: 0.5, zoom: 1.5, noBubble: true, hue: 55,  sat: 1.12, ring: ["#b46eff", "#8a6eff", "#ff6ecd"] },
 };
-const ORB_ORDER = ["aurora", "halo", "ember", "tide", "nebula", "meadow"];
+const ORB_ORDER = ["aurora", "ember", "verdant", "blossom", "glacier", "nebula"];
 const ORB_KEY = "lull.orb.v1";
 const OWNED_KEY = "lull.orbsOwned.v1";
 function loadOrb() { try { const v = localStorage.getItem(ORB_KEY); return v && ORBS[v] ? v : "aurora"; } catch (e) { return "aurora"; } }
@@ -123,7 +125,7 @@ function fmtPrice(p) { return p ? "$" + p.toFixed(2) : "Free"; }
 function orbChip(id, size) {
   const o = ORBS[id] || ORBS.aurora;
   const base = { width: size, height: size, borderRadius: "50%", flex: "0 0 auto", overflow: "hidden", boxShadow: "0 2px 10px rgba(0,0,0,0.22)" };
-  if (o.kind === "image") return <div style={base}><img src={o.src} alt="" draggable="false" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transform: o.zoom ? `scale(${o.zoom})` : undefined, transformOrigin: "center" }} /></div>;
+  if (o.kind === "image") return <div style={base}><img src={o.src} alt="" draggable="false" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transform: o.zoom ? `scale(${o.zoom})` : undefined, transformOrigin: "center", filter: o.hue ? `hue-rotate(${o.hue}deg) saturate(${o.sat || 1.1})` : undefined }} /></div>;
   const cols = o.colors || ["140,180,255", "196,155,255", "255,158,203", "134,235,205"];
   const layers = cols.map((c, i, arr) => { const a = (i / arr.length) * Math.PI * 2 - Math.PI / 2; const x = (50 + Math.cos(a) * 24).toFixed(0); const y = (50 + Math.sin(a) * 24).toFixed(0); return `radial-gradient(42% 42% at ${x}% ${y}%, rgba(${c},0.92), transparent 60%)`; });
   layers.push("radial-gradient(30% 30% at 50% 50%, rgba(255,255,255,0.85), transparent 60%)");
@@ -574,7 +576,7 @@ export default function Lull() {
                   <div style={{ position: "absolute", inset: 0, borderRadius: "50%", overflow: "hidden", isolation: "isolate", zIndex: 2, WebkitMaskImage: imgMask, maskImage: imgMask, filter: active ? (isCool ? "brightness(1.13) saturate(1.06)" : "brightness(0.9) saturate(1.0)") : undefined, animation: (idle && !prefersReduced) ? "orbGlow 7s ease-in-out infinite" : "none", transition: active ? `filter ${orb.dur}s ${orb.ease || "ease"}` : "filter 1s ease" }}>
                     {/* Two copies of the swirl counter-rotate and screen-blend so the ribbons churn.
                         `zoom` crops past the glass rim/gloss for a bubble-less, free-flowing look. */}
-                    <div style={{ position: "absolute", inset: 0, transform: imgZoom !== 1 ? `scale(${imgZoom})` : undefined, transformOrigin: "center" }}>
+                    <div style={{ position: "absolute", inset: 0, transform: imgZoom !== 1 ? `scale(${imgZoom})` : undefined, transformOrigin: "center", filter: selectedOrb.hue ? `hue-rotate(${selectedOrb.hue}deg) saturate(${selectedOrb.sat || 1.1})` : undefined }}>
                       <img src={orbSrc} alt="" draggable="false" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", transformOrigin: "center", display: "block", pointerEvents: "none", willChange: "transform", animation: prefersReduced ? "none" : "swirlSpin 46s linear infinite" }} />
                       <img src={orbSrc} alt="" draggable="false" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", transformOrigin: "center", display: "block", pointerEvents: "none", mixBlendMode: "screen", opacity: 0.45, willChange: "transform", animation: prefersReduced ? "none" : "swirlSpinRev 63s linear infinite" }} />
                     </div>
