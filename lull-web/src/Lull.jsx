@@ -825,7 +825,7 @@ export default function Lull() {
                     <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", padding: "3px 9px", borderRadius: 999, background: wa(0.15), color: inkA(0.82) }}>Best value</span>
                   </div>
                   <div style={{ display: "flex", marginBottom: 14 }}>
-                    {["aurora", "ember", "blossom", "nova", "frost"].map((id, i) => (
+                    {["ember", "verdant", "blossom", "nova", "frost"].map((id, i) => (
                       <div key={id} style={{ marginLeft: i ? -14 : 0, borderRadius: "50%", boxShadow: "0 0 0 2.5px rgba(8,5,16,0.92)" }}>{orbChip(id, 46)}</div>
                     ))}
                   </div>
