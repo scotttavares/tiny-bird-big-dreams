@@ -429,8 +429,10 @@ export default function Lull() {
     @keyframes orbIdle { 0%,100% { transform: scale(0.8);} 50% { transform: scale(1.08);} }
     @keyframes drift1 { 0%,100% { transform: translate(0,0);} 50% { transform: translate(40px,-30px);} }
     @keyframes drift2 { 0%,100% { transform: translate(0,0);} 50% { transform: translate(-50px,40px);} }
-    @keyframes swirlSpin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
-    @keyframes swirlSpinRev { from { transform: rotate(360deg);} to { transform: rotate(0deg);} }
+    /* Scale baked in so the (inset:0, 100%) image fills the container exactly and stays centred,
+       while the rotation still can't expose a corner of the masked circle. */
+    @keyframes swirlSpin { from { transform: scale(1.3) rotate(0deg);} to { transform: scale(1.3) rotate(360deg);} }
+    @keyframes swirlSpinRev { from { transform: scale(1.3) rotate(360deg);} to { transform: scale(1.3) rotate(0deg);} }
     @keyframes coreScale { 0%,100% { transform: scale(0.95);} 50% { transform: scale(1.1);} }
     /* Orbital loops (4 waypoints) so the blooms circulate and re-mix, not just pulse in place. */
     @keyframes driftA1 { 0%{transform:translate(-9%,-6%) scale(1);} 25%{transform:translate(7%,-10%) scale(1.12);} 50%{transform:translate(10%,7%) scale(1.04);} 75%{transform:translate(-7%,10%) scale(1.1);} 100%{transform:translate(-9%,-6%) scale(1);} }
@@ -568,8 +570,8 @@ export default function Lull() {
                     {/* Swirling interior: two copies of the orb slowly counter-rotating and screen-blended,
                         so the colour ribbons cross and churn instead of the whole ball just scaling.
                         A fixed specular sits on top so it still reads as a glass sphere, not a spinning disc. */}
-                    <img src={orbSrc} alt="" draggable="false" style={{ position: "absolute", inset: "-12%", width: "124%", height: "124%", objectFit: "cover", display: "block", pointerEvents: "none", willChange: "transform", animation: prefersReduced ? "none" : "swirlSpin 46s linear infinite" }} />
-                    <img src={orbSrc} alt="" draggable="false" style={{ position: "absolute", inset: "-12%", width: "124%", height: "124%", objectFit: "cover", display: "block", pointerEvents: "none", mixBlendMode: "screen", opacity: 0.45, willChange: "transform", animation: prefersReduced ? "none" : "swirlSpinRev 63s linear infinite" }} />
+                    <img src={orbSrc} alt="" draggable="false" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", transformOrigin: "center", display: "block", pointerEvents: "none", willChange: "transform", animation: prefersReduced ? "none" : "swirlSpin 46s linear infinite" }} />
+                    <img src={orbSrc} alt="" draggable="false" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", transformOrigin: "center", display: "block", pointerEvents: "none", mixBlendMode: "screen", opacity: 0.45, willChange: "transform", animation: prefersReduced ? "none" : "swirlSpinRev 63s linear infinite" }} />
                     <div aria-hidden="true" style={{ position: "absolute", inset: 0, borderRadius: "50%", pointerEvents: "none", background: "radial-gradient(58% 52% at 37% 30%, rgba(255,255,255,0.32), rgba(255,255,255,0.06) 42%, transparent 62%)" }} />
                   </div>
                 ) : (
