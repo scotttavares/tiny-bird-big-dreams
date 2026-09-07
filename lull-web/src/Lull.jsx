@@ -108,21 +108,24 @@ function saveCustom(c) { try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(c
 // symmetric ring of the `colors` palette on a white (white:true) or deep (white:false) ground.
 // Every orb is a real generated swirl (Aurora quality). Three different swirl compositions
 // (glass/b/c/d), each hue-shifted into its own colour family and cropped bubble-less like Aurora.
+// Each orb carries its own `bg` (a dark, tinted ground that matches it). "coded" is the original
+// aurora-bloom orb (recoloured by the theme dots); it has no bg so it uses the theme's own ground.
 const ORBS = {
-  aurora:  { name: "Aurora",  tag: "Flowing swirl", kind: "image", src: "/assets/orb-glass.webp",  white: false, price: 0,   zoom: 1.5, noBubble: true, hue: 0,             ring: ["#5ec8ff", "#9a7bff", "#ff6ec0"] },
-  ember:   { name: "Ember",   tag: "Warm fire",     kind: "image", src: "/assets/orb-swirl-d.webp", white: false, price: 0.5, zoom: 1.5, noBubble: true, hue: 150, sat: 1.15, ring: ["#ffd27a", "#ff9a5c", "#ff5c7d"] },
-  verdant: { name: "Verdant", tag: "Emerald bloom", kind: "image", src: "/assets/orb-swirl-c.webp", white: false, price: 0.5, zoom: 1.5, noBubble: true, hue: 260, sat: 1.12, ring: ["#7fe6a0", "#a8e86e", "#5ad0c0"] },
-  blossom: { name: "Blossom", tag: "Rose petals",   kind: "image", src: "/assets/orb-swirl-b.webp", white: false, price: 0.5, zoom: 1.5, noBubble: true, hue: 90,  sat: 1.12, ring: ["#ff8fbf", "#ff6ea0", "#ffa8d8"] },
-  glacier: { name: "Glacier", tag: "Icy current",   kind: "image", src: "/assets/orb-swirl-c.webp", white: false, price: 0.5, zoom: 1.5, noBubble: true, hue: 310, sat: 1.1,  ring: ["#5ee0ff", "#66d6e6", "#7fb8ff"] },
-  nebula:  { name: "Nebula",  tag: "Cosmic violet", kind: "image", src: "/assets/orb-swirl-d.webp", white: false, price: 0.5, zoom: 1.5, noBubble: true, hue: 55,  sat: 1.12, ring: ["#b46eff", "#8a6eff", "#ff6ecd"] },
+  aurora:  { name: "Aurora",  tag: "Flowing swirl", kind: "image", src: "/assets/orb-glass.webp",  price: 0,   zoom: 1.5, noBubble: true, hue: 0,             ring: ["#5ec8ff", "#9a7bff", "#ff6ec0"], bg: "radial-gradient(125% 120% at 50% 16%, #1a1030 0%, #0a0613 58%, #060310 100%)" },
+  bloom:   { name: "Bloom",   tag: "Original · themeable", kind: "coded", price: 0 },
+  ember:   { name: "Ember",   tag: "Warm fire",     kind: "image", src: "/assets/orb-swirl-d.webp", price: 0.5, zoom: 1.5, noBubble: true, hue: 150, sat: 1.15, ring: ["#ffd27a", "#ff9a5c", "#ff5c7d"], bg: "radial-gradient(125% 120% at 50% 16%, #2a1208 0%, #150806 58%, #0a0403 100%)" },
+  verdant: { name: "Verdant", tag: "Emerald bloom", kind: "image", src: "/assets/orb-swirl-c.webp", price: 0.5, zoom: 1.5, noBubble: true, hue: 260, sat: 1.12, ring: ["#7fe6a0", "#a8e86e", "#5ad0c0"], bg: "radial-gradient(125% 120% at 50% 16%, #0c2418 0%, #07140d 58%, #030b07 100%)" },
+  blossom: { name: "Blossom", tag: "Rose petals",   kind: "image", src: "/assets/orb-swirl-b.webp", price: 0.5, zoom: 1.5, noBubble: true, hue: 90,  sat: 1.12, ring: ["#ff8fbf", "#ff6ea0", "#ffa8d8"], bg: "radial-gradient(125% 120% at 50% 16%, #2a1024 0%, #150813 58%, #0a040b 100%)" },
+  glacier: { name: "Glacier", tag: "Icy current",   kind: "image", src: "/assets/orb-swirl-c.webp", price: 0.5, zoom: 1.5, noBubble: true, hue: 310, sat: 1.1,  ring: ["#5ee0ff", "#66d6e6", "#7fb8ff"], bg: "radial-gradient(125% 120% at 50% 16%, #0a2432 0%, #06131c 58%, #03080e 100%)" },
+  nebula:  { name: "Nebula",  tag: "Cosmic violet", kind: "image", src: "/assets/orb-swirl-d.webp", price: 0.5, zoom: 1.5, noBubble: true, hue: 55,  sat: 1.12, ring: ["#b46eff", "#8a6eff", "#ff6ecd"], bg: "radial-gradient(125% 120% at 50% 16%, #1c1038 0%, #0e0722 58%, #060310 100%)" },
   // Particle spheres — a rotating cloud of glowing dots on a deep black ground.
-  solstice: { name: "Solstice", tag: "Ember dust",   kind: "particles", dark: true, price: 0.5, palette: { top: [255, 150, 55],  mid: [255, 180, 120], bot: [255, 255, 255] }, ring: ["#ffb04a", "#ff8a3c", "#fff0d6"] },
-  frost:    { name: "Frost",    tag: "Ice dust",     kind: "particles", dark: true, price: 0.5, palette: { top: [120, 205, 255], mid: [180, 228, 255], bot: [255, 255, 255] }, ring: ["#7fd0ff", "#b0e6ff", "#ffffff"] },
-  nova:     { name: "Nova",     tag: "Stardust",     kind: "particles", dark: true, price: 0.5, palette: { top: [190, 120, 255], mid: [230, 140, 230], bot: [255, 155, 210] }, ring: ["#b46eff", "#e08aff", "#ff8ec8"] },
+  solstice: { name: "Solstice", tag: "Ember dust",   kind: "particles", dark: true, price: 0.5, palette: { top: [255, 150, 55],  mid: [255, 180, 120], bot: [255, 255, 255] }, ring: ["#ffb04a", "#ff8a3c", "#fff0d6"], bg: "radial-gradient(120% 120% at 50% 30%, #140b06 0%, #080402 60%, #020101 100%)" },
+  frost:    { name: "Frost",    tag: "Ice dust",     kind: "particles", dark: true, price: 0.5, palette: { top: [120, 205, 255], mid: [180, 228, 255], bot: [255, 255, 255] }, ring: ["#7fd0ff", "#b0e6ff", "#ffffff"], bg: "radial-gradient(120% 120% at 50% 30%, #06121e 0%, #03080f 60%, #010305 100%)" },
+  nova:     { name: "Nova",     tag: "Stardust",     kind: "particles", dark: true, price: 0.5, palette: { top: [190, 120, 255], mid: [230, 140, 230], bot: [255, 155, 210] }, ring: ["#b46eff", "#e08aff", "#ff8ec8"], bg: "radial-gradient(120% 120% at 50% 30%, #120826 0%, #080414 60%, #030108 100%)" },
   // Plasma sphere — a rim-lit energy ball with a moving, crackled surface (animated SVG turbulence).
-  ion:      { name: "Ion",      tag: "Plasma sphere", kind: "plasma", dark: true, price: 0.5, ring: ["#7fd0ff", "#4fb0ff", "#bfeeff"] },
+  ion:      { name: "Ion",      tag: "Plasma sphere", kind: "plasma", dark: true, price: 0.5, ring: ["#7fd0ff", "#4fb0ff", "#bfeeff"], bg: "radial-gradient(120% 120% at 50% 32%, #06111f 0%, #030812 60%, #010307 100%)" },
 };
-const ORB_ORDER = ["aurora", "ember", "verdant", "blossom", "glacier", "nebula", "solstice", "frost", "nova", "ion"];
+const ORB_ORDER = ["aurora", "bloom", "ember", "verdant", "blossom", "glacier", "nebula", "solstice", "frost", "nova", "ion"];
 const ORB_KEY = "lull.orb.v1";
 const OWNED_KEY = "lull.orbsOwned.v1";
 function loadOrb() { try { const v = localStorage.getItem(ORB_KEY); return v && ORBS[v] ? v : "aurora"; } catch (e) { return "aurora"; } }
@@ -134,6 +137,7 @@ function orbChip(id, size) {
   if (o.kind === "image") return <div style={base}><img src={o.src} alt="" draggable="false" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transform: o.zoom ? `scale(${o.zoom})` : undefined, transformOrigin: "center", filter: o.hue ? `hue-rotate(${o.hue}deg) saturate(${o.sat || 1.1})` : undefined }} /></div>;
   if (o.kind === "particles") { const t = o.palette.top.join(","), bt = o.palette.bot.join(","); return <div style={{ ...base, background: `radial-gradient(58% 52% at 50% 33%, rgba(${t},0.95), transparent 62%), radial-gradient(54% 50% at 50% 78%, rgba(${bt},0.92), transparent 62%), #060409` }} />; }
   if (o.kind === "plasma") return <div style={{ ...base, background: "radial-gradient(circle at 44% 38%, #12336a 0%, #0a1428 62%), radial-gradient(circle at 50% 50%, transparent 74%, rgba(150,232,255,0.9) 93%, transparent 100%), #050308" }} />;
+  if (o.kind === "coded") return <div style={{ ...base, background: "radial-gradient(circle at 38% 30%, #b8a4ff, transparent 54%), radial-gradient(circle at 68% 40%, #6fb2ff, transparent 54%), radial-gradient(circle at 62% 72%, #78f0d0, transparent 54%), radial-gradient(circle at 32% 66%, #ffb696, transparent 54%), radial-gradient(circle at 50% 46%, rgba(255,255,255,0.7), transparent 34%), #0a0613" }} />;
   const cols = o.colors || ["140,180,255", "196,155,255", "255,158,203", "134,235,205"];
   const layers = cols.map((c, i, arr) => { const a = (i / arr.length) * Math.PI * 2 - Math.PI / 2; const x = (50 + Math.cos(a) * 24).toFixed(0); const y = (50 + Math.sin(a) * 24).toFixed(0); return `radial-gradient(42% 42% at ${x}% ${y}%, rgba(${c},0.92), transparent 60%)`; });
   layers.push("radial-gradient(30% 30% at 50% 50%, rgba(255,255,255,0.85), transparent 60%)");
@@ -337,7 +341,7 @@ export default function Lull() {
   const unlockOrb = (id) => { setOwnedOrbs((prev) => (prev.includes(id) ? prev : [...prev, id])); setOrbId(id); };
   const restoreOrbs = () => { /* real IAP/Stripe restore wires in here */ };
   useEffect(() => { try { if (window.matchMedia) setLight(window.matchMedia("(prefers-color-scheme: light)").matches); } catch (e) {} }, []);
-  useEffect(() => { try { const on = light && mode !== "sleep"; document.documentElement.style.colorScheme = on ? "light" : "dark"; const m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", on ? "#faf4ee" : "#0a0613"); } catch (e) {} }, [light, mode]);
+  useEffect(() => { try { document.documentElement.style.colorScheme = "dark"; const m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", "#070410"); } catch (e) {} }, []);
 
   const clearTimers = useCallback(() => {
     if (phaseTimeout.current) clearTimeout(phaseTimeout.current);
@@ -468,10 +472,10 @@ export default function Lull() {
   const selectedOrb = ORBS[orbId] || ORBS.aurora;
   // The progress ring's gradient matches the selected orb's own palette (falls back to the theme).
   const ringColors = selectedOrb.ring || [ringFrom, ringTo];
-  const onWhite = !!selectedOrb.white && !night;   // Apple-glow orb sits on a clean white ground
+  const onWhite = false;                            // (retired — no white-ground orbs)
   const onDark = !!selectedOrb.dark;               // particle / plasma orbs glow on a deep-black ground
-  const daylight = light && !night;                 // user's manual light theme
-  const lightUI = !onDark && (onWhite || daylight); // dark ink on a white/light ground; light ink on black
+  const daylight = false;                            // manual light theme retired — every orb brings its own background
+  const lightUI = false;                             // every orb's ground is dark, so ink stays light
   const orbSrc = selectedOrb.kind === "image" ? selectedOrb.src : null;
   // Melt the image's near-black edge into the ground (both themes) so there's no black disc/halo —
   // on dark it becomes a soft glow, on light the warm ground shows around a soft-edged glass ball.
@@ -491,7 +495,7 @@ export default function Lull() {
   const LIGHT_ROOT = "radial-gradient(125% 110% at 50% 6%, #faf4ee 0%, #f2eaef 55%, #ece1e9 100%)";
   const WHITE_ROOT = "radial-gradient(125% 120% at 50% 4%, #ffffff 0%, #fbfbfe 58%, #f3f3f8 100%)";
   const DARK_ROOT = "radial-gradient(120% 120% at 50% 32%, #0a0711 0%, #050308 60%, #020104 100%)";
-  const groundBg = onDark ? DARK_ROOT : onWhite ? WHITE_ROOT : (night ? th.rootNight : (daylight ? LIGHT_ROOT : th.rootDay));
+  const groundBg = night ? th.rootNight : (selectedOrb.bg || th.rootDay);  // each orb's own matching ground
   const root = { minHeight: "100vh", width: "100%", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden", background: groundBg, color: ink, fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif', WebkitFontSmoothing: "antialiased", transition: "background 1.4s ease, color 1.4s ease" };
   const frame = { position: "relative", zIndex: 2, width: "100%", maxWidth: 460, minHeight: "min(100vh, 820px)", padding: "max(26px, calc(env(safe-area-inset-top) + 6px)) 26px calc(40px + env(safe-area-inset-bottom))", display: "flex", flexDirection: "column", alignItems: "center" };
   const css = `
@@ -581,14 +585,14 @@ export default function Lull() {
         </defs>
       </svg>
 
-      <div className="amb1" style={{ position: "absolute", top: "-10%", left: "-15%", width: 520, height: 520, borderRadius: "50%", background: amb1, filter: "blur(20px)", zIndex: 0, opacity: (onWhite || onDark) ? 0 : 1, transition: "background 1.4s ease, opacity 1.2s ease" }} />
-      <div className="amb2" style={{ position: "absolute", bottom: "-12%", right: "-18%", width: 560, height: 560, borderRadius: "50%", background: amb2, filter: "blur(20px)", zIndex: 0, opacity: (onWhite || onDark) ? 0 : 1, transition: "background 1.4s ease, opacity 1.2s ease" }} />
-      <div style={{ position: "absolute", inset: 0, background: isCool ? tintCool : tintWarm, opacity: (onWhite || onDark) ? 0 : 1, transition: "background 1.5s ease, opacity 1.2s ease", zIndex: 1, pointerEvents: "none" }} />
+      <div className="amb1" style={{ position: "absolute", top: "-10%", left: "-15%", width: 520, height: 520, borderRadius: "50%", background: amb1, filter: "blur(20px)", zIndex: 0, opacity: selectedOrb.bg ? 0 : 1, transition: "background 1.4s ease, opacity 1.2s ease" }} />
+      <div className="amb2" style={{ position: "absolute", bottom: "-12%", right: "-18%", width: 560, height: 560, borderRadius: "50%", background: amb2, filter: "blur(20px)", zIndex: 0, opacity: selectedOrb.bg ? 0 : 1, transition: "background 1.4s ease, opacity 1.2s ease" }} />
+      <div style={{ position: "absolute", inset: 0, background: isCool ? tintCool : tintWarm, opacity: selectedOrb.bg ? 0 : 1, transition: "background 1.5s ease, opacity 1.2s ease", zIndex: 1, pointerEvents: "none" }} />
 
       <div style={frame}>
         <div style={{ position: "relative", width: "100%", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 36, marginBottom: 8 }}>
           <span style={{ fontSize: 14, letterSpacing: 6, textTransform: "uppercase", fontWeight: 500, opacity: 0.82, paddingLeft: 6 }}>Lull</span>
-          <button className="lull-btn" aria-label={lightUI ? "Switch to dark" : "Switch to light"} onClick={() => setLight((v) => !v)} style={{ position: "absolute", left: 0, padding: 8, opacity: 0.7, display: (night || onWhite || onDark) ? "none" : "flex" }}>{lightUI ? <Moon size={19} /> : <Sun size={19} />}</button>
+          {false && (<button className="lull-btn" aria-label="theme" onClick={() => setLight((v) => !v)} style={{ position: "absolute", left: 0, padding: 8, opacity: 0.7 }}>{lightUI ? <Moon size={19} /> : <Sun size={19} />}</button>)}
           <button className="lull-btn" aria-label={soundOn ? "Mute sound" : "Unmute sound"} aria-pressed={soundOn} onClick={toggleSound} style={{ position: "absolute", right: 0, padding: 8, opacity: 0.7, display: "flex" }}>{soundOn ? <Volume2 size={20} /> : <VolumeX size={20} />}</button>
         </div>
 
@@ -610,8 +614,8 @@ export default function Lull() {
               </svg>
 
               <div className={idle ? "orb-idle" : ""} style={{ width: ORB, height: ORB, borderRadius: "50%", position: "relative", display: "flex", alignItems: "center", justifyContent: "center", willChange: "transform", ...(idle ? {} : { transform: `scale(${orb.scale})`, transition: `transform ${orb.dur}s ${orb.ease}` }) }}>
-                <div style={{ position: "absolute", inset: -46, borderRadius: "50%", background: isCool ? glowCool : glowWarm, filter: "blur(36px)", transition: "background 1.2s ease", zIndex: 0 }} />
-                <div style={{ position: "absolute", inset: 0, borderRadius: "50%", overflow: "hidden", zIndex: 1, display: "none", boxShadow: "inset 0 0 42px rgba(0,0,0,0.6), inset 0 1px 14px rgba(255,255,255,0.12)" }}>
+                <div style={{ position: "absolute", inset: -46, borderRadius: "50%", background: isCool ? glowCool : glowWarm, filter: "blur(36px)", opacity: selectedOrb.kind === "coded" ? 1 : 0, transition: "background 1.2s ease, opacity 1s ease", zIndex: 0 }} />
+                <div style={{ position: "absolute", inset: 0, borderRadius: "50%", overflow: "hidden", zIndex: 2, display: selectedOrb.kind === "coded" ? "block" : "none", boxShadow: "inset 0 0 42px rgba(0,0,0,0.6), inset 0 1px 14px rgba(255,255,255,0.12)" }}>
                   <div style={{ position: "absolute", inset: 0, background: orbBase, transition: "background 1.2s ease" }} />
                   {/* lit core */}
                   <div style={{ position: "absolute", inset: "-6%", zIndex: 1, animation: prefersReduced ? "none" : "coreScale 9s ease-in-out infinite" }}>
@@ -636,7 +640,7 @@ export default function Lull() {
                     idle brightness shimmer, and a breath-brightness during a session (cool/inhale brighter,
                     warm/exhale softer). No mix-blend-mode: the parent's transform isolates it, so we mask the
                     near-black edge to blend into the ground instead. */}
-                {selectedOrb.kind === "plasma" ? (
+                {selectedOrb.kind === "coded" ? null : selectedOrb.kind === "plasma" ? (
                   <div style={{ position: "absolute", inset: 0, borderRadius: "50%", overflow: "hidden", zIndex: 2, filter: active ? (isCool ? "brightness(1.14) saturate(1.08)" : "brightness(0.92)") : undefined, animation: (idle && !prefersReduced) ? "orbGlow 8s ease-in-out infinite" : "none", transition: active ? `filter ${orb.dur}s ${orb.ease || "ease"}` : "filter 1s ease" }}>
                     <svg viewBox="0 0 300 300" preserveAspectRatio="xMidYMid meet" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }}>
                       <defs>
@@ -721,7 +725,7 @@ export default function Lull() {
               <span style={{ fontSize: 13, fontWeight: 500, letterSpacing: 0.3 }}>{selectedOrb.name}</span>
               <span style={{ fontSize: 12, opacity: 0.5, letterSpacing: 0.5 }}>Orbs ›</span>
             </button>
-            {!onWhite && (
+            {selectedOrb.kind === "coded" && (
             <div style={{ display: "flex", gap: 12, justifyContent: "center", padding: "2px 0 4px" }}>
               {Object.entries(THEMES).map(([id, t]) => { const sel = themeId === id; return (
                 <button key={id} className="lull-dot lull-btn" aria-label={`Orb colour: ${t.name}`} aria-pressed={sel} title={t.name} onClick={() => setThemeId(id)} style={{ width: 30, height: 30, borderRadius: "50%", padding: 0, backgroundImage: t.swatch, border: "1px solid " + wa(0.3), boxShadow: sel ? (lightUI ? "0 0 0 2px rgba(70,50,140,0.8), 0 3px 12px rgba(80,60,140,0.25)" : "0 0 0 2px rgba(255,255,255,0.9), 0 3px 12px rgba(0,0,0,0.45)") : (lightUI ? "0 2px 8px rgba(80,60,140,0.2)" : "0 2px 8px rgba(0,0,0,0.35)"), transform: sel ? "scale(1.14)" : "scale(1)", transition: "transform .2s ease, box-shadow .2s ease" }} />); })}
