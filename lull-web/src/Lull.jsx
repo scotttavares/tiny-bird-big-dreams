@@ -91,7 +91,29 @@ const AUDIO = {
 const DURATIONS = { breathe: [1, 3, 5], sleep: [15, 30, 60] };
 const DEFAULT_PATTERN = { breathe: "calm", sleep: "drift" };
 const DEFAULT_DUR = { breathe: 3, sleep: 15 };
-const SOUND = [{ id: "bowls", name: "Bowls" }, { id: "handpan", name: "Handpan" }, { id: "binaural", name: "Binaural" }];
+// Soundscapes: three ship free; others unlock via a sound pack (or the Everything bundle).
+// Each is generated procedurally in createSoundscape — no audio files. `pack` names the pack it belongs to.
+const SOUND = [
+  { id: "bowls", name: "Bowls", tag: "Singing bowls", glyph: "🎵", tint: "#9a86ff", free: true },
+  { id: "handpan", name: "Handpan", tag: "Hand drum", glyph: "🪘", tint: "#ffb27a", free: true },
+  { id: "binaural", name: "Binaural", tag: "Deep tones", glyph: "🎧", tint: "#6fb2ff", free: true },
+  { id: "rain", name: "Rain", tag: "Steady rainfall", glyph: "🌧️", tint: "#7fa8d8", pack: "nature" },
+  { id: "ocean", name: "Ocean", tag: "Rolling waves", glyph: "🌊", tint: "#4fc4d0", pack: "nature" },
+  { id: "forest", name: "Forest", tag: "Wind & birdsong", glyph: "🌲", tint: "#79c88a", pack: "nature" },
+  { id: "fire", name: "Fire", tag: "Crackling hearth", glyph: "🔥", tint: "#ff8a5c", pack: "nature" },
+];
+const SOUND_BY_ID = Object.fromEntries(SOUND.map((s) => [s.id, s]));
+function soundChip(id, size) {
+  const s = SOUND_BY_ID[id] || SOUND[0]; const t = s.tint || "#9a86ff";
+  return <div style={{ width: size, height: size, borderRadius: "50%", flex: "0 0 auto", display: "flex", alignItems: "center", justifyContent: "center", fontSize: Math.round(size * 0.42), lineHeight: 1, background: `radial-gradient(circle at 50% 38%, ${t}55, ${t}1f 60%, rgba(8,5,16,0.62) 100%)`, boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.09), 0 2px 10px rgba(0,0,0,0.25)" }}>{s.glyph}</div>;
+}
+const SOUND_PACKS = {
+  nature: { name: "Nature Pack", tag: "Rain, ocean, forest & fire", price: 0.99, sounds: ["rain", "ocean", "forest", "fire"] },
+};
+const SOUND_PACK_ORDER = ["nature"];
+const FREE_SOUNDS = SOUND.filter((s) => s.free).map((s) => s.id);
+const SOUNDS_OWNED_KEY = "lull.soundsOwned.v1";
+function loadOwnedSounds() { try { const r = JSON.parse(localStorage.getItem(SOUNDS_OWNED_KEY) || "null"); const saved = Array.isArray(r) ? r.filter((id) => SOUND_BY_ID[id]) : []; const merged = [...FREE_SOUNDS]; saved.forEach((id) => { if (!merged.includes(id)) merged.push(id); }); return merged; } catch (e) { return [...FREE_SOUNDS]; } }
 const HIST_KEY = "lull.sessions.v1";
 const DAY_MS = 86400000;
 function loadHist() { try { const r = JSON.parse(localStorage.getItem(HIST_KEY) || "[]"); return Array.isArray(r) ? r : []; } catch (e) { return []; } }
@@ -135,7 +157,7 @@ const PACKS = {
   cosmos: { name: "Cosmos Pack", tag: "Three particle orbs on deep space", price: 0.99, orbs: ["solstice", "frost", "nova"] },
 };
 const PACK_ORDER = ["swirls", "cosmos"];
-const BUNDLE = { name: "Everything", tag: "Every orb — and every future orb we add", price: 3.99 };
+const BUNDLE = { name: "Everything", tag: "Every orb and sound — and every future one we add", price: 3.99 };
 const FREE_ORBS = ORB_ORDER.filter((id) => (ORBS[id].price || 0) === 0); // ship unlocked (Aurora, Bloom)
 const ORB_KEY = "lull.orb.v1";
 const OWNED_KEY = "lull.orbsOwned.v1";
@@ -253,6 +275,41 @@ function createSoundscape(id, ctx, master, reverb, buffers, mode) {
     const pad = ctx.createGain(); pad.gain.value = 0.0001; const po = ctx.createOscillator(); po.type = "sine"; po.frequency.value = cfg.f / 2; const plp = ctx.createBiquadFilter(); plp.type = "lowpass"; plp.frequency.value = 300; po.connect(plp); plp.connect(pad); pad.connect(bus); startSrc(po); fades.push(pad); pad.gain.exponentialRampToValueAtTime(0.04, ctx.currentTime + 4);
     const ns = ctx.createBufferSource(); ns.buffer = buffers.brown; ns.loop = true; const ng = ctx.createGain(); ng.gain.value = 0.008; ns.connect(ng); ng.connect(bus); startSrc(ns); fades.push(ng);
     api.onPhase = (phase) => { const t = ctx.currentTime; const tgt = phase.key === "inhale" ? 0.1 : phase.key === "exhale" ? 0.07 : 0.085; [gL, gR].forEach((g) => { g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(Math.max(g.gain.value, 0.0001), t); g.gain.linearRampToValueAtTime(tgt, t + phase.dur * 0.9); }); };
+  } else if (id === "rain") {
+    // Steady rain: bright hiss (white noise, high-passed) over a distant low rumble, with occasional close drips.
+    wet.gain.value = 0.22;
+    const wns = ctx.createBufferSource(); wns.buffer = buffers.white; wns.loop = true;
+    const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 780;
+    const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 6800;
+    const wg = ctx.createGain(); wg.gain.value = 0.0001; wns.connect(hp); hp.connect(lp); lp.connect(wg); wg.connect(bus); startSrc(wns); fades.push(wg);
+    wg.gain.exponentialRampToValueAtTime(mode === "sleep" ? 0.10 : 0.14, ctx.currentTime + 3);
+    const bns = ctx.createBufferSource(); bns.buffer = buffers.brown; bns.loop = true; const blp = ctx.createBiquadFilter(); blp.type = "lowpass"; blp.frequency.value = 200; const bg = ctx.createGain(); bg.gain.value = 0.0001; bns.connect(blp); blp.connect(bg); bg.connect(bus); startSrc(bns); fades.push(bg); bg.gain.exponentialRampToValueAtTime(0.05, ctx.currentTime + 5);
+    const drip = () => { const t0 = ctx.currentTime; const o = ctx.createOscillator(); o.type = "sine"; const f = 900 + Math.random() * 1500; o.frequency.setValueAtTime(f * 1.5, t0); o.frequency.exponentialRampToValueAtTime(f, t0 + 0.05); const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.03, t0 + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.18); o.connect(g); g.connect(bus); g.connect(wet); o.start(t0); o.stop(t0 + 0.24); };
+    every(() => { if (Math.random() < 0.7) drip(); }, () => 1200 + Math.random() * 2600);
+    api.onPhase = (phase) => { const t = ctx.currentTime; const tgt = phase.key === "inhale" ? 0.17 : phase.key === "exhale" ? 0.11 : 0.14; const g = wg.gain; g.cancelScheduledValues(t); g.setValueAtTime(Math.max(g.value, 0.0001), t); g.linearRampToValueAtTime(mode === "sleep" ? tgt * 0.8 : tgt, t + phase.dur * 0.9); };
+  } else if (id === "ocean") {
+    // Waves: brown noise through a slow LFO-swept lowpass (swell in/out), with white-noise foam cresting on the same wave.
+    wet.gain.value = 0.3;
+    const bns = ctx.createBufferSource(); bns.buffer = buffers.brown; bns.loop = true; const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 500; lp.Q.value = 0.6;
+    const wg = ctx.createGain(); wg.gain.value = 0.14; bns.connect(lp); lp.connect(wg); wg.connect(bus); wg.connect(wet); startSrc(bns); fades.push(wg);
+    const wns = ctx.createBufferSource(); wns.buffer = buffers.white; wns.loop = true; const whp = ctx.createBiquadFilter(); whp.type = "highpass"; whp.frequency.value = 1500; const fg = ctx.createGain(); fg.gain.setValueAtTime(0.03, ctx.currentTime); wns.connect(whp); whp.connect(fg); fg.connect(bus); startSrc(wns); fades.push(fg);
+    const lfo = ctx.createOscillator(); lfo.type = "sine"; lfo.frequency.value = mode === "sleep" ? 0.06 : 0.09; const lfg = ctx.createGain(); lfg.gain.value = 320; lfo.connect(lfg); lfg.connect(lp.frequency); startSrc(lfo);
+    const lfo2 = ctx.createOscillator(); lfo2.type = "sine"; lfo2.frequency.value = lfo.frequency.value; const lfo2g = ctx.createGain(); lfo2g.gain.value = 0.03; lfo2.connect(lfo2g); lfo2g.connect(fg.gain); startSrc(lfo2);
+    api.onPhase = (phase) => { const t = ctx.currentTime; const tgt = phase.key === "inhale" ? 0.17 : phase.key === "exhale" ? 0.11 : 0.14; const g = wg.gain; g.cancelScheduledValues(t); g.setValueAtTime(Math.max(g.value, 0.0001), t); g.linearRampToValueAtTime(tgt, t + phase.dur * 0.9); };
+  } else if (id === "forest") {
+    // Woodland: soft LFO-drifting wind, plus random bird chirps (a few quick glissando notes). Birds rest in sleep mode.
+    wet.gain.value = 0.35;
+    const bns = ctx.createBufferSource(); bns.buffer = buffers.brown; bns.loop = true; const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 420; const wg = ctx.createGain(); wg.gain.value = 0.0001; bns.connect(lp); lp.connect(wg); wg.connect(bus); startSrc(bns); fades.push(wg); wg.gain.exponentialRampToValueAtTime(mode === "sleep" ? 0.05 : 0.07, ctx.currentTime + 4);
+    const wlfo = ctx.createOscillator(); wlfo.type = "sine"; wlfo.frequency.value = 0.05; const wlg = ctx.createGain(); wlg.gain.value = 160; wlfo.connect(wlg); wlg.connect(lp.frequency); startSrc(wlfo);
+    const chirp = () => { const n = 2 + (Math.random() * 3 | 0); const base = 2200 + Math.random() * 1800; for (let i = 0; i < n; i++) { const t0 = ctx.currentTime + i * (0.06 + Math.random() * 0.05); const o = ctx.createOscillator(); o.type = "sine"; const f = base * (1 + (Math.random() * 0.3 - 0.1)); o.frequency.setValueAtTime(f * 1.12, t0); o.frequency.exponentialRampToValueAtTime(f, t0 + 0.04); const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(mode === "sleep" ? 0.008 : 0.02, t0 + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.10); o.connect(g); g.connect(wet); g.connect(bus); o.start(t0); o.stop(t0 + 0.16); } };
+    if (mode !== "sleep") every(() => { if (Math.random() < 0.75) chirp(); }, () => 2600 + Math.random() * 4200);
+    api.onPhase = (phase) => { const t = ctx.currentTime; const tgt = phase.key === "inhale" ? 0.09 : 0.06; const g = wg.gain; g.cancelScheduledValues(t); g.setValueAtTime(Math.max(g.value, 0.0001), t); g.linearRampToValueAtTime(mode === "sleep" ? tgt * 0.7 : tgt, t + phase.dur * 0.9); };
+  } else if (id === "fire") {
+    // Hearth: a low brown-noise roar under irregular white-noise crackles (band-passed, fast decay).
+    wet.gain.value = 0.18;
+    const bns = ctx.createBufferSource(); bns.buffer = buffers.brown; bns.loop = true; const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 260; const rg = ctx.createGain(); rg.gain.value = 0.0001; bns.connect(lp); lp.connect(rg); rg.connect(bus); startSrc(bns); fades.push(rg); rg.gain.exponentialRampToValueAtTime(mode === "sleep" ? 0.06 : 0.08, ctx.currentTime + 3);
+    const crackle = () => { const t0 = ctx.currentTime; const src = ctx.createBufferSource(); src.buffer = buffers.white; src.loop = true; const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 1200 + Math.random() * 2200; bp.Q.value = 0.9; const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.02 + Math.random() * 0.05, t0 + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.03 + Math.random() * 0.05); src.connect(bp); bp.connect(g); g.connect(bus); src.start(t0); src.stop(t0 + 0.12); };
+    every(() => { if (Math.random() < 0.85) crackle(); }, () => 70 + Math.random() * 240);
   } else { // bowls (default)
     wet.gain.value = 0.5;
     const cfg = mode === "sleep" ? { f: [98, 146.83, 196], lo: 280, hi: 520, peak: 0.16, low: 0.05, noise: 0.016, nf: 320, bin: 396, bout: 264, vol: 0.05 } : { f: [146.83, 220, 293.66], lo: 480, hi: 940, peak: 0.2, low: 0.06, noise: 0.012, nf: 520, bin: 528, bout: 396, vol: 0.085 };
@@ -299,6 +356,7 @@ export default function Lull() {
   const [mode, setMode] = useState("breathe");
   const [orbId, setOrbId] = useState(loadOrb);          // which orb you breathe with
   const [ownedOrbs, setOwnedOrbs] = useState(loadOwned); // unlocked orb ids
+  const [ownedSounds, setOwnedSounds] = useState(loadOwnedSounds); // unlocked sound ids
   const [orbStoreOpen, setOrbStoreOpen] = useState(false);
   const [themeId, setThemeId] = useState("aurora");
   const [screen, setScreen] = useState("home");
@@ -347,6 +405,7 @@ export default function Lull() {
   useEffect(() => { scapeIdRef.current = scapeId; }, [scapeId]);
   useEffect(() => { try { localStorage.setItem(ORB_KEY, orbId); } catch (e) {} }, [orbId]);
   useEffect(() => { try { localStorage.setItem(OWNED_KEY, JSON.stringify(ownedOrbs)); } catch (e) {} }, [ownedOrbs]);
+  useEffect(() => { try { localStorage.setItem(SOUNDS_OWNED_KEY, JSON.stringify(ownedSounds)); } catch (e) {} }, [ownedSounds]);
   const selectOrb = (id) => { if (ownedOrbs.includes(id)) { setOrbId(id); setOrbStoreOpen(false); } };
   // Single seam for buying an orb. Today it unlocks locally; real charging (Apple In-App Purchase
   // on iOS, Stripe on web) drops in here — await the receipt, then unlock on success.
@@ -354,11 +413,17 @@ export default function Lull() {
   const restoreOrbs = () => { /* real IAP/Stripe restore wires in here */ };
   const orbOwned = (id) => ownedOrbs.includes(id);
   const packOwned = (p) => p.orbs.every(orbOwned);
-  const allOwned = ORB_ORDER.every(orbOwned);
-  // Unlock every orb in a pack (or every orb, for the bundle). Real charging awaits the receipt,
+  const soundOwned = (id) => ownedSounds.includes(id);
+  const soundPackOwned = (p) => p.sounds.every(soundOwned);
+  const allOrbsOwned = ORB_ORDER.every(orbOwned);
+  const allSoundsOwned = SOUND.every((s) => soundOwned(s.id));
+  const allOwned = allOrbsOwned && allSoundsOwned;   // everything (orbs + sounds) — gates the bundle & the "Unlock more" section
+  const selectSound = (id) => { if (soundOwned(id)) setScapeId(id); };
+  // Unlock an orb pack, a sound pack, or everything (the bundle). Real charging awaits the receipt,
   // then calls these on success — same seam as unlockOrb.
   const unlockPack = (packId) => { const p = PACKS[packId]; if (!p) return; setOwnedOrbs((prev) => { const next = [...prev]; p.orbs.forEach((id) => { if (!next.includes(id)) next.push(id); }); return next; }); };
-  const unlockBundle = () => { setOwnedOrbs([...ORB_ORDER]); };
+  const unlockSoundPack = (packId) => { const p = SOUND_PACKS[packId]; if (!p) return; setOwnedSounds((prev) => { const next = [...prev]; p.sounds.forEach((id) => { if (!next.includes(id)) next.push(id); }); return next; }); };
+  const unlockBundle = () => { setOwnedOrbs([...ORB_ORDER]); setOwnedSounds(SOUND.map((s) => s.id)); };
   useEffect(() => { try { if (window.matchMedia) setLight(window.matchMedia("(prefers-color-scheme: light)").matches); } catch (e) {} }, []);
   useEffect(() => { try { document.documentElement.style.colorScheme = "dark"; const m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", "#070410"); } catch (e) {} }, []);
 
@@ -761,8 +826,9 @@ export default function Lull() {
               {DURATIONS[mode].map((m) => { const sel = durationMin === m; const big = m >= 60 ? m / 60 : m; const unit = m >= 60 ? "hr" : "min"; return (<button key={m} className="lull-seg lull-btn" aria-pressed={sel} onClick={() => { setDurationMin(m); setRemaining(m * 60); }} style={seg(sel)}><span style={{ fontSize: 16, fontWeight: 500 }}>{big}</span><span style={{ fontSize: 11, opacity: 0.6, letterSpacing: 1 }}>{unit}</span></button>); })}
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 7, justifyContent: "center", paddingTop: 2 }}>
-              {SOUND.map((o) => { const sel = scapeId === o.id; return (
+              {SOUND.filter((o) => soundOwned(o.id)).map((o) => { const sel = scapeId === o.id; return (
                 <button key={o.id} className="lull-seg lull-btn" aria-pressed={sel} onClick={() => setScapeId(o.id)} style={{ padding: "7px 13px", borderRadius: 999, fontSize: 12.5, letterSpacing: 0.3, background: sel ? wa(0.14) : wa(0.05), border: "1px solid " + (sel ? wa(0.3) : wa(0.1)), color: sel ? ink : inkA(0.55), transition: "background .25s ease, color .25s ease, border-color .25s ease" }}>{o.name}</button>); })}
+              {!allSoundsOwned && (<button key="more-sounds" className="lull-seg lull-btn" onClick={() => setOrbStoreOpen(true)} style={{ padding: "7px 13px", borderRadius: 999, fontSize: 12.5, letterSpacing: 0.3, background: wa(0.05), border: "1px dashed " + wa(0.22), color: inkA(0.6) }}>＋ More</button>)}
             </div>
             {scapeId === "binaural" && (<p style={{ fontSize: 12, opacity: 0.55, textAlign: "center", margin: "2px 0 0", letterSpacing: 0.3 }}>Best with headphones</p>)}
             <button className="lull-btn lull-cta" onClick={startSession} style={{ ...glassBtn, marginTop: 4 }}>Begin</button>
@@ -794,20 +860,35 @@ export default function Lull() {
       {orbStoreOpen && (
         <div style={{ position: "fixed", inset: 0, zIndex: 60, background: groundBg, color: ink, display: "flex", flexDirection: "column", padding: "max(30px, calc(env(safe-area-inset-top) + 12px)) 26px calc(34px + env(safe-area-inset-bottom))", overflowY: "auto" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-            <span style={{ fontSize: 12, letterSpacing: 5, textTransform: "uppercase", fontWeight: 500, opacity: 0.6 }}>Orbs</span>
+            <span style={{ fontSize: 12, letterSpacing: 5, textTransform: "uppercase", fontWeight: 500, opacity: 0.6 }}>Store</span>
             <button className="lull-btn" aria-label="Done" onClick={() => setOrbStoreOpen(false)} style={{ padding: "6px 4px", opacity: 0.75, fontSize: 15 }}>Done</button>
           </div>
-          <p style={{ fontSize: 14, lineHeight: 1.5, opacity: 0.6, margin: "0 0 24px", maxWidth: "42ch" }}>Tap an orb to breathe with it. Unlock packs to add more — yours forever, no subscription.</p>
+          <p style={{ fontSize: 14, lineHeight: 1.5, opacity: 0.6, margin: "0 0 24px", maxWidth: "42ch" }}>Tap to choose your orb and sound. Unlock packs to add more — yours forever, no subscription.</p>
 
           {/* Your orbs — free + everything you own, tap to breathe with it */}
           <div style={{ fontSize: 11, letterSpacing: 3, textTransform: "uppercase", fontWeight: 600, opacity: 0.5, marginBottom: 13 }}>Your orbs</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(94px, 1fr))", gap: 11, marginBottom: allOwned ? 4 : 30 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(94px, 1fr))", gap: 11, marginBottom: 28 }}>
             {ORB_ORDER.filter(orbOwned).map((id) => {
               const o = ORBS[id]; const sel = orbId === id;
               return (
                 <button key={id} className="lull-btn" aria-pressed={sel} onClick={() => selectOrb(id)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 9, padding: "15px 8px 12px", borderRadius: 18, background: sel ? wa(0.09) : wa(0.03), border: "1px solid " + (sel ? wa(0.34) : wa(0.1)), boxShadow: sel ? "0 8px 22px -14px rgba(0,0,0,0.55)" : "none", transition: "border-color .2s ease, background .2s ease" }}>
                   {orbChip(id, 58)}
                   <span style={{ fontSize: 13, fontWeight: 600, letterSpacing: 0.2 }}>{o.name}</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", color: sel ? inkA(0.72) : inkA(0.36) }}>{sel ? "In use" : "Tap to use"}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Your sounds — free + everything you own, tap to breathe with it */}
+          <div style={{ fontSize: 11, letterSpacing: 3, textTransform: "uppercase", fontWeight: 600, opacity: 0.5, marginBottom: 13 }}>Your sounds</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(94px, 1fr))", gap: 11, marginBottom: allOwned ? 4 : 30 }}>
+            {SOUND.filter((s) => soundOwned(s.id)).map((s) => {
+              const sel = scapeId === s.id;
+              return (
+                <button key={s.id} className="lull-btn" aria-pressed={sel} onClick={() => selectSound(s.id)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 9, padding: "15px 8px 12px", borderRadius: 18, background: sel ? wa(0.09) : wa(0.03), border: "1px solid " + (sel ? wa(0.34) : wa(0.1)), boxShadow: sel ? "0 8px 22px -14px rgba(0,0,0,0.55)" : "none", transition: "border-color .2s ease, background .2s ease" }}>
+                  {soundChip(s.id, 58)}
+                  <span style={{ fontSize: 13, fontWeight: 600, letterSpacing: 0.2 }}>{s.name}</span>
                   <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.7, textTransform: "uppercase", color: sel ? inkA(0.72) : inkA(0.36) }}>{sel ? "In use" : "Tap to use"}</span>
                 </button>
               );
@@ -850,6 +931,25 @@ export default function Lull() {
                           <div style={{ fontSize: 12, opacity: 0.55, marginTop: 3 }}>{p.tag}</div>
                         </div>
                         <button className="lull-btn" onClick={() => unlockPack(pid)} style={{ padding: "10px 18px", borderRadius: 999, fontSize: 13.5, fontWeight: 600, letterSpacing: 0.3, whiteSpace: "nowrap", color: ink, background: wa(0.12), border: "1px solid " + wa(0.22) }}>{fmtPrice(p.price)}</button>
+                      </div>
+                    </div>
+                  );
+                })}
+                {SOUND_PACK_ORDER.map((pid) => {
+                  const p = SOUND_PACKS[pid]; if (soundPackOwned(p)) return null;
+                  return (
+                    <div key={pid} style={{ padding: 16, borderRadius: 20, background: wa(0.05), border: "1px solid " + wa(0.12) }}>
+                      <div style={{ display: "flex", marginBottom: 13 }}>
+                        {p.sounds.map((id, i) => (
+                          <div key={id} style={{ marginLeft: i ? -12 : 0, borderRadius: "50%", boxShadow: "0 0 0 2.5px rgba(8,5,16,0.92)" }}>{soundChip(id, 40)}</div>
+                        ))}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 15.5, fontWeight: 600, letterSpacing: 0.2 }}>{p.name}</div>
+                          <div style={{ fontSize: 12, opacity: 0.55, marginTop: 3 }}>{p.tag}</div>
+                        </div>
+                        <button className="lull-btn" onClick={() => unlockSoundPack(pid)} style={{ padding: "10px 18px", borderRadius: 999, fontSize: 13.5, fontWeight: 600, letterSpacing: 0.3, whiteSpace: "nowrap", color: ink, background: wa(0.12), border: "1px solid " + wa(0.22) }}>{fmtPrice(p.price)}</button>
                       </div>
                     </div>
                   );
