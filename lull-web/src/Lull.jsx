@@ -147,8 +147,10 @@ const ORBS = {
   // Radiant image orbs — a pinwheel bloom and a wispy flare, on their own deep grounds.
   iris:     { name: "Iris",     tag: "Radiant bloom", kind: "image", src: "/assets/orb-iris.webp", price: 0.5, zoom: 1.35, noBubble: true, hue: 0, ring: ["#4fd0ff", "#b46eff", "#ff7ad0"], bg: "radial-gradient(125% 120% at 50% 16%, #16123a 0%, #0a0720 58%, #050310 100%)" },
   wisp:     { name: "Wisp",     tag: "Wisps of light", kind: "image", src: "/assets/orb-wisp.webp", price: 0.5, zoom: 1.35, noBubble: true, hue: 0, ring: ["#6ea8ff", "#a06eff", "#ff6ec8"], bg: "radial-gradient(120% 120% at 50% 30%, #0e0a2a 0%, #070518 60%, #030110 100%)" },
+  // Light orb — a pastel swirl on a soft bright ground (flips the UI to dark ink; drifting pastel blobs behind it).
+  dawn:     { name: "Dawn",     tag: "Soft daylight", kind: "image", src: "/assets/orb-dawn.webp", price: 0.5, zoom: 1.25, noBubble: true, hue: 0, light: true, ring: ["#5ab0f5", "#a97fe6", "#f58cb8"], bg: "radial-gradient(125% 120% at 50% 8%, #ffffff 0%, #fbf7ff 55%, #f1edfa 100%)" },
 };
-const ORB_ORDER = ["aurora", "bloom", "ember", "verdant", "blossom", "glacier", "nebula", "iris", "solstice", "frost", "nova", "wisp"];
+const ORB_ORDER = ["aurora", "bloom", "ember", "verdant", "blossom", "glacier", "nebula", "iris", "dawn", "solstice", "frost", "nova", "wisp"];
 // ---------- packs & bundle ----------
 // Orbs are sold in themed packs (one price unlocks every orb in the pack), plus a single
 // "Everything" bundle that unlocks all orbs — and every future orb & sound we add — for one
@@ -156,8 +158,8 @@ const ORB_ORDER = ["aurora", "bloom", "ember", "verdant", "blossom", "glacier", 
 // (Apple In-App Purchase on iOS, Stripe on web) wires into unlockPack/unlockBundle — the same
 // seam as unlockOrb.
 const PACKS = {
-  swirls: { name: "Swirls Pack", tag: "Six flowing colour orbs, each with its own sky", price: 0.99, orbs: ["ember", "verdant", "blossom", "glacier", "nebula", "iris"] },
-  cosmos: { name: "Cosmos Pack", tag: "Four cosmic orbs on deep space", price: 0.99, orbs: ["solstice", "frost", "nova", "wisp"] },
+  swirls: { name: "Swirls Pack", tag: "Flowing colour orbs, each with its own sky", price: 0.99, orbs: ["ember", "verdant", "blossom", "glacier", "nebula", "iris", "dawn"] },
+  cosmos: { name: "Cosmos Pack", tag: "Cosmic orbs on deep space", price: 0.99, orbs: ["solstice", "frost", "nova", "wisp"] },
 };
 const PACK_ORDER = ["swirls", "cosmos"];
 const BUNDLE = { name: "Everything", tag: "Every orb and sound — and every future one we add", price: 3.99 };
@@ -562,10 +564,11 @@ export default function Lull() {
   const selectedOrb = ORBS[orbId] || ORBS.aurora;
   // The progress ring's gradient matches the selected orb's own palette (falls back to the theme).
   const ringColors = selectedOrb.ring || [ringFrom, ringTo];
-  const onWhite = false;                            // (retired — no white-ground orbs)
+  const isLight = !!selectedOrb.light && !night;    // pastel orbs sit on a bright ground with dark UI; sleep stays dark
+  const onWhite = isLight;                           // dark readout ink + a soft white halo on the bright ground
   const onDark = !!selectedOrb.dark;               // particle / plasma orbs glow on a deep-black ground
-  const daylight = false;                            // manual light theme retired — every orb brings its own background
-  const lightUI = false;                             // every orb's ground is dark, so ink stays light
+  const daylight = isLight;
+  const lightUI = isLight;                            // flips ink / inkA / wa to dark tones on the bright ground
   const orbSrc = selectedOrb.kind === "image" ? selectedOrb.src : null;
   // Melt the image's near-black edge into the ground (both themes) so there's no black disc/halo —
   // on dark it becomes a soft glow, on light the warm ground shows around a soft-edged glass ball.
@@ -586,6 +589,9 @@ export default function Lull() {
   const WHITE_ROOT = "radial-gradient(125% 120% at 50% 4%, #ffffff 0%, #fbfbfe 58%, #f3f3f8 100%)";
   const DARK_ROOT = "radial-gradient(120% 120% at 50% 32%, #0a0711 0%, #050308 60%, #020104 100%)";
   const groundBg = night ? th.rootNight : (selectedOrb.bg || th.rootDay);  // each orb's own matching ground
+  // Solid fallback under the gradient so full-screen (position:fixed) modals never let the dark page
+  // body bleed through — critical for light orbs, where a non-painting gradient would look dark.
+  const groundSolid = isLight ? "#f8f4fd" : "#0a0613";
   const root = { minHeight: "100vh", width: "100%", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden", background: groundBg, color: ink, fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif', WebkitFontSmoothing: "antialiased", transition: "background 1.4s ease, color 1.4s ease" };
   const frame = { position: "relative", zIndex: 2, width: "100%", maxWidth: 460, minHeight: "min(100vh, 820px)", padding: "max(26px, calc(env(safe-area-inset-top) + 6px)) 26px calc(40px + env(safe-area-inset-bottom))", display: "flex", flexDirection: "column", alignItems: "center" };
   const css = `
@@ -678,6 +684,13 @@ export default function Lull() {
       <div className="amb1" style={{ position: "absolute", top: "-10%", left: "-15%", width: 520, height: 520, borderRadius: "50%", background: amb1, filter: "blur(20px)", zIndex: 0, opacity: selectedOrb.bg ? 0 : 1, transition: "background 1.4s ease, opacity 1.2s ease" }} />
       <div className="amb2" style={{ position: "absolute", bottom: "-12%", right: "-18%", width: 560, height: 560, borderRadius: "50%", background: amb2, filter: "blur(20px)", zIndex: 0, opacity: selectedOrb.bg ? 0 : 1, transition: "background 1.4s ease, opacity 1.2s ease" }} />
       <div style={{ position: "absolute", inset: 0, background: isCool ? tintCool : tintWarm, opacity: selectedOrb.bg ? 0 : 1, transition: "background 1.5s ease, opacity 1.2s ease", zIndex: 1, pointerEvents: "none" }} />
+      {/* Light orb: slowly-drifting pastel blobs give the bright ground gentle motion (disabled by reduced-motion via .amb classes). */}
+      {isLight && (<>
+        <div className="amb1" style={{ position: "absolute", top: "-14%", left: "-12%", width: 560, height: 560, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,170,205,0.55), rgba(255,170,205,0) 70%)", filter: "blur(46px)", zIndex: 0, pointerEvents: "none" }} />
+        <div className="amb2" style={{ position: "absolute", bottom: "-16%", right: "-12%", width: 600, height: 600, borderRadius: "50%", background: "radial-gradient(circle, rgba(150,200,255,0.55), rgba(150,200,255,0) 70%)", filter: "blur(46px)", zIndex: 0, pointerEvents: "none" }} />
+        <div className="amb1" style={{ position: "absolute", top: "34%", right: "-14%", width: 460, height: 460, borderRadius: "50%", background: "radial-gradient(circle, rgba(170,235,200,0.5), rgba(170,235,200,0) 70%)", filter: "blur(50px)", zIndex: 0, pointerEvents: "none", animationDelay: "-9s" }} />
+        <div className="amb2" style={{ position: "absolute", bottom: "30%", left: "-12%", width: 480, height: 480, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,215,165,0.5), rgba(255,215,165,0) 70%)", filter: "blur(50px)", zIndex: 0, pointerEvents: "none", animationDelay: "-15s" }} />
+      </>)}
 
       <div style={frame}>
         <div style={{ position: "relative", width: "100%", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 36, marginBottom: 8 }}>
@@ -861,7 +874,7 @@ export default function Lull() {
       </div>
 
       {orbStoreOpen && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 60, background: groundBg, color: ink, display: "flex", flexDirection: "column", padding: "max(30px, calc(env(safe-area-inset-top) + 12px)) 26px calc(34px + env(safe-area-inset-bottom))", overflowY: "auto" }}>
+        <div style={{ position: "fixed", inset: 0, zIndex: 60, backgroundColor: groundSolid, backgroundImage: groundBg, color: ink, display: "flex", flexDirection: "column", padding: "max(30px, calc(env(safe-area-inset-top) + 12px)) 26px calc(34px + env(safe-area-inset-bottom))", overflowY: "auto" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
             <span style={{ fontSize: 12, letterSpacing: 5, textTransform: "uppercase", fontWeight: 500, opacity: 0.6 }}>Store</span>
             <button className="lull-btn" aria-label="Done" onClick={() => setOrbStoreOpen(false)} style={{ padding: "6px 4px", opacity: 0.75, fontSize: 15 }}>Done</button>
@@ -965,7 +978,7 @@ export default function Lull() {
         </div>
       )}
       {showCustom && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 60, background: groundBg, color: ink, display: "flex", flexDirection: "column", padding: "max(30px, calc(env(safe-area-inset-top) + 12px)) 26px calc(34px + env(safe-area-inset-bottom))", overflowY: "auto" }}>
+        <div style={{ position: "fixed", inset: 0, zIndex: 60, backgroundColor: groundSolid, backgroundImage: groundBg, color: ink, display: "flex", flexDirection: "column", padding: "max(30px, calc(env(safe-area-inset-top) + 12px)) 26px calc(34px + env(safe-area-inset-bottom))", overflowY: "auto" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22 }}>
             <span style={{ fontSize: 12, letterSpacing: 5, textTransform: "uppercase", fontWeight: 500, opacity: 0.6 }}>Your pattern</span>
             <button className="lull-btn" aria-label="Cancel" onClick={() => setShowCustom(false)} style={{ padding: "6px 4px", opacity: 0.75, fontSize: 15 }}>Cancel</button>
@@ -1000,7 +1013,7 @@ export default function Lull() {
       )}
 
       {showHistory && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 60, background: groundBg, color: ink, display: "flex", flexDirection: "column", padding: "max(30px, calc(env(safe-area-inset-top) + 12px)) 26px calc(34px + env(safe-area-inset-bottom))", overflowY: "auto" }}>
+        <div style={{ position: "fixed", inset: 0, zIndex: 60, backgroundColor: groundSolid, backgroundImage: groundBg, color: ink, display: "flex", flexDirection: "column", padding: "max(30px, calc(env(safe-area-inset-top) + 12px)) 26px calc(34px + env(safe-area-inset-bottom))", overflowY: "auto" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
             <span style={{ fontSize: 12, letterSpacing: 5, textTransform: "uppercase", fontWeight: 500, opacity: 0.6 }}>Your breaths</span>
             <button className="lull-btn" aria-label="Close" onClick={() => setShowHistory(false)} style={{ padding: "6px 4px", opacity: 0.75, fontSize: 15 }}>Done</button>
