@@ -135,7 +135,7 @@ const PACKS = {
   cosmos: { name: "Cosmos Pack", tag: "Three particle orbs on deep space", price: 0.99, orbs: ["solstice", "frost", "nova"] },
 };
 const PACK_ORDER = ["swirls", "cosmos"];
-const BUNDLE = { name: "Everything", tag: "Every orb — and every future orb & sound we add", price: 3.99 };
+const BUNDLE = { name: "Everything", tag: "Every orb — and every future orb we add", price: 3.99 };
 const FREE_ORBS = ORB_ORDER.filter((id) => (ORBS[id].price || 0) === 0); // ship unlocked (Aurora, Bloom)
 const ORB_KEY = "lull.orb.v1";
 const OWNED_KEY = "lull.orbsOwned.v1";
