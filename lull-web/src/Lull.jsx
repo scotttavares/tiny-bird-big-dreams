@@ -109,6 +109,27 @@ function soundChip(id, size) {
   if (s.img) return <div style={base}><img src={s.img} alt="" draggable="false" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /></div>;
   return <div style={{ ...base, display: "flex", alignItems: "center", justifyContent: "center", fontSize: Math.round(size * 0.42), lineHeight: 1, background: `radial-gradient(circle at 50% 38%, ${t}55, ${t}1f 60%, rgba(8,5,16,0.62) 100%)` }}>{s.glyph}</div>;
 }
+// ---------- rings orb ----------
+// A rosette of large, thin, translucent circle outlines (screen-blended so overlaps glow) around a
+// dark hollow centre — the "woven light-rings" look. Each ring takes a colour from the orb's palette;
+// the whole group rotates slowly. Interior is transparent, so the orb's own dark ground shows through.
+function ringsSVG(palette, opts = {}) {
+  const pal = (palette && palette.length) ? palette : ["#e0929e", "#e6935e", "#8fb0e0", "#5ececf", "#efe6f2", "#c98ad0"];
+  const n = 9, R = 40, off = 13;
+  const circles = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2 + 0.4;
+    const cx = 50 + Math.cos(a) * off, cy = 50 + Math.sin(a) * off;
+    const rr = R * (0.9 + 0.2 * ((i * 41 % 100) / 100));
+    const bright = i % 3 === 0;
+    circles.push(<circle key={i} cx={cx.toFixed(2)} cy={cy.toFixed(2)} r={rr.toFixed(2)} fill="none" stroke={pal[i % pal.length]} strokeWidth={bright ? 0.9 : 0.6} opacity={bright ? 0.62 : 0.42} />);
+  }
+  return (
+    <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block", overflow: "visible" }}>
+      <g style={{ mixBlendMode: "screen", transformBox: "fill-box", transformOrigin: "center", animation: opts.anim ? "ringSpin 64s linear infinite" : "none" }}>{circles}</g>
+    </svg>
+  );
+}
 const SOUND_PACKS = {
   nature: { name: "Nature Pack", tag: "Rain, ocean, forest & fire", price: 0.99, sounds: ["rain", "ocean", "forest", "fire"] },
 };
@@ -151,8 +172,13 @@ const ORBS = {
   wisp:     { name: "Wisp",     tag: "Wisps of light", kind: "image", src: "/assets/orb-wisp.webp", price: 0.5, zoom: 1.35, noBubble: true, hue: 0, ring: ["#6ea8ff", "#a06eff", "#ff6ec8"], bg: "radial-gradient(120% 120% at 50% 30%, #0e0a2a 0%, #070518 60%, #030110 100%)" },
   // Light orb — a pastel swirl on a soft bright ground (flips the UI to dark ink; drifting pastel blobs behind it).
   dawn:     { name: "Dawn",     tag: "Soft daylight", kind: "image", src: "/assets/orb-dawn.webp", price: 0.5, zoom: 1.25, noBubble: true, hue: 0, light: true, ring: ["#5ab0f5", "#a97fe6", "#f58cb8"], bg: "radial-gradient(125% 120% at 50% 8%, #ffffff 0%, #fbf7ff 55%, #f1edfa 100%)" },
+  // Rings orbs — a rosette of translucent light-rings woven around a dark hollow centre (coded, no image).
+  halo:     { name: "Halo",     tag: "Woven light",   kind: "rings", price: 0.5, palette: ["#e0929e", "#e6935e", "#8fb0e0", "#5ececf", "#efe6f2", "#c98ad0"], ring: ["#e0929e", "#8fb0e0", "#5ececf"], bg: "radial-gradient(125% 120% at 50% 20%, #10131f 0%, #080a14 58%, #04050c 100%)" },
+  prism:    { name: "Prism",    tag: "Spectrum halo", kind: "rings", price: 0.5, palette: ["#ff9a9a", "#ffcf8a", "#9be89b", "#7fb8ff", "#c79bff", "#ff8fd0"], ring: ["#ff9a9a", "#9be89b", "#7fb8ff"], bg: "radial-gradient(125% 120% at 50% 20%, #12101c 0%, #0a0813 58%, #050310 100%)" },
+  lagoon:   { name: "Lagoon",   tag: "Tidal rings",   kind: "rings", price: 0.5, palette: ["#5ec8ff", "#4fd0c0", "#7fb8ff", "#8ae0d0", "#bfeeff", "#6ad0ff"], ring: ["#5ec8ff", "#4fd0c0", "#bfeeff"], bg: "radial-gradient(125% 120% at 50% 20%, #071a24 0%, #04121a 58%, #02090f 100%)" },
+  dusk:     { name: "Dusk",     tag: "Ember halo",    kind: "rings", price: 0.5, palette: ["#ff9a7a", "#ff6ea0", "#c79bff", "#ffb27a", "#ff8fbf", "#b46eff"], ring: ["#ff9a7a", "#ff6ea0", "#c79bff"], bg: "radial-gradient(125% 120% at 50% 20%, #1c1020 0%, #100812 58%, #08040a 100%)" },
 };
-const ORB_ORDER = ["aurora", "bloom", "ember", "verdant", "blossom", "glacier", "nebula", "iris", "dawn", "solstice", "frost", "nova", "wisp"];
+const ORB_ORDER = ["aurora", "bloom", "ember", "verdant", "blossom", "glacier", "nebula", "iris", "dawn", "solstice", "frost", "nova", "wisp", "halo", "prism", "lagoon", "dusk"];
 // ---------- packs & bundle ----------
 // Orbs are sold in themed packs (one price unlocks every orb in the pack), plus a single
 // "Everything" bundle that unlocks all orbs — and every future orb & sound we add — for one
@@ -162,8 +188,9 @@ const ORB_ORDER = ["aurora", "bloom", "ember", "verdant", "blossom", "glacier", 
 const PACKS = {
   swirls: { name: "Swirls Pack", tag: "Flowing colour orbs, each with its own sky", price: 0.99, orbs: ["ember", "verdant", "blossom", "glacier", "nebula", "iris", "dawn"] },
   cosmos: { name: "Cosmos Pack", tag: "Cosmic orbs on deep space", price: 0.99, orbs: ["solstice", "frost", "nova", "wisp"] },
+  aura: { name: "Aura Pack", tag: "Woven translucent light-rings", price: 0.99, orbs: ["halo", "prism", "lagoon", "dusk"] },
 };
-const PACK_ORDER = ["swirls", "cosmos"];
+const PACK_ORDER = ["swirls", "cosmos", "aura"];
 const BUNDLE = { name: "Everything", tag: "Every orb and sound — and every future one we add", price: 3.99 };
 const FREE_ORBS = ORB_ORDER.filter((id) => (ORBS[id].price || 0) === 0); // ship unlocked (Aurora, Bloom)
 const ORB_KEY = "lull.orb.v1";
@@ -178,6 +205,7 @@ function orbChip(id, size) {
   if (o.kind === "image") return <div style={base}><img src={o.src} alt="" draggable="false" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transform: o.zoom ? `scale(${o.zoom})` : undefined, transformOrigin: "center", filter: o.hue ? `hue-rotate(${o.hue}deg) saturate(${o.sat || 1.1})` : undefined }} /></div>;
   if (o.kind === "particles") { const t = o.palette.top.join(","), bt = o.palette.bot.join(","); return <div style={{ ...base, background: `radial-gradient(58% 52% at 50% 33%, rgba(${t},0.95), transparent 62%), radial-gradient(54% 50% at 50% 78%, rgba(${bt},0.92), transparent 62%), #060409` }} />; }
   if (o.kind === "plasma") return <div style={{ ...base, background: "radial-gradient(circle at 44% 38%, #12336a 0%, #0a1428 62%), radial-gradient(circle at 50% 50%, transparent 74%, rgba(150,232,255,0.9) 93%, transparent 100%), #050308" }} />;
+  if (o.kind === "rings") return <div style={{ ...base, position: "relative", background: "radial-gradient(circle at 50% 45%, #14111f, #06040e)" }}>{ringsSVG(o.palette, { anim: false })}</div>;
   if (o.kind === "coded") return <div style={{ ...base, background: "radial-gradient(circle at 38% 30%, #b8a4ff, transparent 54%), radial-gradient(circle at 68% 40%, #6fb2ff, transparent 54%), radial-gradient(circle at 62% 72%, #78f0d0, transparent 54%), radial-gradient(circle at 32% 66%, #ffb696, transparent 54%), radial-gradient(circle at 50% 46%, rgba(255,255,255,0.7), transparent 34%), #0a0613" }} />;
   const cols = o.colors || ["140,180,255", "196,155,255", "255,158,203", "134,235,205"];
   const layers = cols.map((c, i, arr) => { const a = (i / arr.length) * Math.PI * 2 - Math.PI / 2; const x = (50 + Math.cos(a) * 24).toFixed(0); const y = (50 + Math.sin(a) * 24).toFixed(0); return `radial-gradient(42% 42% at ${x}% ${y}%, rgba(${c},0.92), transparent 60%)`; });
@@ -605,6 +633,7 @@ export default function Lull() {
     * { box-sizing: border-box; }
     body { margin: 0; }
     @keyframes orbIdle { 0%,100% { transform: scale(0.8);} 50% { transform: scale(1.08);} }
+    @keyframes ringSpin { to { transform: rotate(360deg); } }
     @keyframes drift1 { 0%,100% { transform: translate(0,0);} 50% { transform: translate(40px,-30px);} }
     @keyframes drift2 { 0%,100% { transform: translate(0,0);} 50% { transform: translate(-50px,40px);} }
     /* Scale baked in so the (inset:0, 100%) image fills the container exactly and stays centred,
@@ -750,7 +779,11 @@ export default function Lull() {
                     idle brightness shimmer, and a breath-brightness during a session (cool/inhale brighter,
                     warm/exhale softer). No mix-blend-mode: the parent's transform isolates it, so we mask the
                     near-black edge to blend into the ground instead. */}
-                {selectedOrb.kind === "coded" ? null : selectedOrb.kind === "plasma" ? (
+                {selectedOrb.kind === "coded" ? null : selectedOrb.kind === "rings" ? (
+                  <div style={{ position: "absolute", inset: 0, borderRadius: "50%", overflow: "hidden", zIndex: 2, filter: active ? (isCool ? "brightness(1.14) saturate(1.08)" : "brightness(0.94)") : undefined, animation: (idle && !prefersReduced) ? "orbGlow 9s ease-in-out infinite" : "none", transition: active ? `filter ${orb.dur}s ${orb.ease || "ease"}` : "filter 1s ease" }}>
+                    {ringsSVG(selectedOrb.palette, { anim: !prefersReduced })}
+                  </div>
+                ) : selectedOrb.kind === "plasma" ? (
                   <div style={{ position: "absolute", inset: 0, borderRadius: "50%", overflow: "hidden", zIndex: 2, filter: active ? (isCool ? "brightness(1.14) saturate(1.08)" : "brightness(0.92)") : undefined, animation: (idle && !prefersReduced) ? "orbGlow 8s ease-in-out infinite" : "none", transition: active ? `filter ${orb.dur}s ${orb.ease || "ease"}` : "filter 1s ease" }}>
                     <svg viewBox="0 0 300 300" preserveAspectRatio="xMidYMid meet" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }}>
                       <defs>
