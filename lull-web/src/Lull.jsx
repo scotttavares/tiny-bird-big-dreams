@@ -314,14 +314,28 @@ const BOWL_PARTIALS = (done) => [{ r: 1, g: 1, d: done ? 6.5 : 3.4 }, { r: 2.76,
 // fetch + decodeAudioData + BufferSource: the media element uses the browser's native streaming
 // decoder, which plays MP3 reliably across Chrome, Safari and Firefox — decodeAudioData does not
 // (it rejects some MP3s in Safari/Firefox and fails silently). Add ocean/forest/fire here as they land.
-const NATURE_AUDIO = { rain: { url: "/assets/rain.mp3", gain: 24 } };
+const NATURE_AUDIO = {
+  rain: { url: "/assets/rain.mp3", gain: 24 },
+  ocean: { url: "/assets/ocean.mp3", gain: 23 },
+  forest: { url: "/assets/forest.mp3", gain: 57 },
+  // Fire's crackles are sharp transients (very high crest), so a plain gain loud enough to hear the
+  // bed would clip the pops. `limit` inserts a limiter that tames the peaks so we can bring it up.
+  fire: { url: "/assets/fire.mp3", gain: 14, limit: true },
+};
 
 function createSoundscape(id, ctx, master, reverb, buffers, mode) {
   // Nature sounds play from a real looping recording via a media element (see NATURE_AUDIO).
   if (NATURE_AUDIO[id]) {
     const conf = NATURE_AUDIO[id];
     const g = ctx.createGain(); g.gain.value = 0.0001; g.connect(master);
-    const vg = ctx.createGain(); vg.gain.value = conf.gain; vg.connect(g);
+    // Optional limiter for transient-heavy loops (fire): tames the sharp peaks so the bed can come up.
+    let head = g;
+    if (conf.limit) {
+      const lim = ctx.createDynamicsCompressor();
+      lim.threshold.value = -10; lim.knee.value = 6; lim.ratio.value = 20; lim.attack.value = 0.003; lim.release.value = 0.25;
+      lim.connect(g); head = lim;
+    }
+    const vg = ctx.createGain(); vg.gain.value = conf.gain; vg.connect(head);
     let el = null;
     try {
       el = new Audio(); el.src = conf.url; el.loop = true; el.preload = "auto";
