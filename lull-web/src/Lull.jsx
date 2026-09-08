@@ -551,9 +551,12 @@ export default function Lull() {
   const resumeSession = () => { pausedRef.current = false; setPaused(false); ensureAudio(); if (soundRef.current && !scapeRef.current) buildAmbience(); runPhase(); };
   const goHome = () => { clearTimers(); pausedRef.current = false; setPaused(false); teardownAmbience(0.9); setScreen("home"); setOrb({ scale: LO, dur: 1, ease: "ease" }); setRemaining(durationMin * 60); setProgress(0); setPatternId((pid) => pid === "sigh" ? DEFAULT_PATTERN[mode] : pid); };
   function finishSession() { clearTimers(); pausedRef.current = false; setPaused(false); if (modeRef.current === "breathe") bowl("done"); teardownAmbience(modeRef.current === "sleep" ? 3.4 : 1.6); setMoodAfter(null); try { const entry = { t: Date.now(), mode: modeRef.current, pattern: patternIdRef.current, min: Math.max(1, Math.round(targetRef.current / 60)), moodBefore: (typeof moodBeforeRef.current === "number" ? moodBeforeRef.current : null), moodAfter: null }; setSessions((prev) => { const next = [...prev, entry]; saveHist(next); return next; }); } catch (e) {} setScreen("done"); }
-  // A gentle, skippable calm check before breathing → sets moodBefore, then starts. Sleep skips it entirely.
+  // A gentle, skippable calm check before breathing → sets moodBefore, then starts. Sleep and SOS
+  // (sos:true patterns, e.g. Reset) skip it entirely — no friction when someone needs to calm down now.
   const beginWithCheckin = (patOverride, durSecOverride) => {
-    if (mode !== "breathe") { startSession(patOverride, durSecOverride); return; }
+    const pid = (typeof patOverride === "string" && PATTERNS[mode][patOverride]) ? patOverride : patternId;
+    const p = PATTERNS[mode] && PATTERNS[mode][pid];
+    if (mode !== "breathe" || (p && p.sos)) { moodBeforeRef.current = null; startSession(patOverride, durSecOverride); return; }
     pendingStartRef.current = { pat: (typeof patOverride === "string" ? patOverride : undefined), dur: (typeof durSecOverride === "number" ? durSecOverride : undefined) };
     moodBeforeRef.current = null; setMoodAfter(null); setPreCheck(true);
   };
@@ -961,7 +964,7 @@ export default function Lull() {
             <div style={{ marginBottom: 14, borderRadius: "50%", boxShadow: `0 0 60px ${(selectedOrb.ring && selectedOrb.ring[0]) || th.ringTo}66` }}>{orbChip(orbId, 96)}</div>
             <div style={{ fontSize: 28, fontWeight: 300, letterSpacing: 0.5 }}>That's it.</div>
             <p style={{ fontSize: 14, opacity: 0.6, margin: 0, maxWidth: 260 }}>You gave yourself {durationMin} {durationMin === 1 ? "minute" : "minutes"}. Carry it with you.</p>
-            {(() => {
+            {!(PATTERNS[mode][patternId] && PATTERNS[mode][patternId].sos) && (() => {
               if (moodAfter == null) return (
                 <div style={{ marginTop: 16, display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
                   <div style={{ fontSize: 13, opacity: 0.6, letterSpacing: 0.3 }}>How do you feel now?</div>
