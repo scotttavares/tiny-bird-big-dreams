@@ -308,44 +308,31 @@ const HANDPAN = [146.83, 220.0, 233.08, 261.63, 293.66, 329.63, 349.23, 440.0]; 
 const HP_PARTIALS = [{ r: 1, g: 1, d: 2.6 }, { r: 2.01, g: 0.4, d: 2.0 }, { r: 3.0, g: 0.16, d: 1.3 }, { r: 5.02, g: 0.07, d: 0.8 }];
 const BOWL_PARTIALS = (done) => [{ r: 1, g: 1, d: done ? 6.5 : 3.4 }, { r: 2.76, g: 0.42, d: done ? 5 : 2.6 }, { r: 5.4, g: 0.16, d: 2.0 }];
 
-// Real recorded loops for nature sounds (replacing procedural synth). Add ocean/forest/fire as files land.
-const NATURE_AUDIO = { rain: "/assets/rain.mp3" };
-const _abCache = new Map();
-function loadAudioBuffer(ctx, url) {
-  if (_abCache.has(url)) return Promise.resolve(_abCache.get(url));
-  return fetch(url).then((r) => r.arrayBuffer()).then((ab) => new Promise((res, rej) => {
-    ctx.decodeAudioData(ab, (b) => { _abCache.set(url, b); res(b); }, rej);
-  }));
-}
-function bufferRms(buf) { let sum = 0, n = 0; for (let c = 0; c < buf.numberOfChannels; c++) { const d = buf.getChannelData(c); for (let i = 0; i < d.length; i += 64) { sum += d[i] * d[i]; n++; } } return Math.sqrt(sum / Math.max(n, 1)) || 0; }
-function bufferPeak(buf) { let p = 0; for (let c = 0; c < buf.numberOfChannels; c++) { const d = buf.getChannelData(c); for (let i = 0; i < d.length; i += 16) { const a = d[i] < 0 ? -d[i] : d[i]; if (a > p) p = a; } } return p || 1; }
-const MASTER_LEVEL = 0.45; // master gain during a session (see ensureAudio) — used to keep boosted loops below clipping
+// Real recorded loops for nature sounds. Each carries a `gain` measured from the file offline (these
+// recordings export very quiet — rain is ~22 dB down), baked in so playback needs no runtime decode.
+// They play through an <audio> element tapped into the graph (createMediaElementSource) rather than
+// fetch + decodeAudioData + BufferSource: the media element uses the browser's native streaming
+// decoder, which plays MP3 reliably across Chrome, Safari and Firefox — decodeAudioData does not
+// (it rejects some MP3s in Safari/Firefox and fails silently). Add ocean/forest/fire here as they land.
+const NATURE_AUDIO = { rain: { url: "/assets/rain.mp3", gain: 24 } };
 
 function createSoundscape(id, ctx, master, reverb, buffers, mode) {
-  // Nature sounds play from a real looping recording. Recordings arrive at wildly different levels
-  // (some very quiet), so we boost each to an even, present loudness — targeting an RMS, but capped
-  // by the file's peak so even a heavily-boosted quiet file never clips the output.
+  // Nature sounds play from a real looping recording via a media element (see NATURE_AUDIO).
   if (NATURE_AUDIO[id]) {
+    const conf = NATURE_AUDIO[id];
     const g = ctx.createGain(); g.gain.value = 0.0001; g.connect(master);
-    let src = null, gone = false;
-    // Recordings arrive at wildly different levels (the rain take is ~22 dB down), so boost each toward
-    // an even, present loudness — targeting an RMS, but capped by the file's peak so even a heavily
-    // boosted quiet file never clips the output.
-    const TARGET_RMS = 0.22;   // perceived level to aim for
-    const PEAK_CEIL = 0.85;    // hold the loudest sample this far below clipping at the destination
-    loadAudioBuffer(ctx, NATURE_AUDIO[id]).then((buf) => {
-      if (gone) return;
-      const rms = bufferRms(buf) || TARGET_RMS, peak = bufferPeak(buf);
-      const norm = Math.max(0.3, Math.min(40, TARGET_RMS / rms, PEAK_CEIL / (MASTER_LEVEL * peak)));
-      src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
-      const vg = ctx.createGain(); vg.gain.value = norm; src.connect(vg); vg.connect(g);
-      try { src.start(); } catch (e) {}
+    const vg = ctx.createGain(); vg.gain.value = conf.gain; vg.connect(g);
+    let el = null;
+    try {
+      el = new Audio(); el.src = conf.url; el.loop = true; el.preload = "auto";
+      const node = ctx.createMediaElementSource(el); node.connect(vg);
+      const p = el.play(); if (p && p.catch) p.catch(() => {});
       const t = ctx.currentTime; g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(1, t + 1.4);
-    }).catch(() => {});
+    } catch (e) {}
     return {
       onPhase() {}, onStart() {}, onDone() {},
       soften() { try { const t = ctx.currentTime; g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(Math.max(g.gain.value, 0.0001), t); g.gain.linearRampToValueAtTime(0.55, t + 0.6); } catch (e) {} },
-      stop(fade = 1.4) { gone = true; try { const t = ctx.currentTime; g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(Math.max(g.gain.value, 0.0001), t); g.gain.exponentialRampToValueAtTime(0.0001, t + fade); } catch (e) {} if (src) { try { src.stop(ctx.currentTime + fade + 0.1); } catch (e) {} } },
+      stop(fade = 1.4) { try { const t = ctx.currentTime; g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(Math.max(g.gain.value, 0.0001), t); g.gain.exponentialRampToValueAtTime(0.0001, t + fade); } catch (e) {} if (el) { setTimeout(() => { try { el.pause(); } catch (e) {} }, (fade + 0.15) * 1000); } },
     };
   }
   const bus = ctx.createGain(); bus.gain.value = 1; bus.connect(master);
