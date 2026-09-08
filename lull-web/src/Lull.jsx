@@ -517,6 +517,8 @@ export default function Lull() {
   const [mix, setMix] = useState(() => { try { return JSON.parse(localStorage.getItem("lull.mix.v1")) || {}; } catch (e) { return {}; } }); // { id: 0..1 }
   const [mixPlaying, setMixPlaying] = useState(false);
   const mixBusRef = useRef(null); const mixNodesRef = useRef({}); const mixPlayingRef = useRef(false);
+  const [mixPresets, setMixPresets] = useState(() => { try { return JSON.parse(localStorage.getItem("lull.mixPresets.v1")) || []; } catch (e) { return []; } }); // saved, named blends
+  const [savingMix, setSavingMix] = useState(false); const [mixName, setMixName] = useState("");
   const [preCheck, setPreCheck] = useState(false);      // pre-session mood check-in overlay
   const [moodAfter, setMoodAfter] = useState(null);     // done-screen mood → reveals the calm lift
 
@@ -645,6 +647,13 @@ export default function Lull() {
   const stopMix = () => { mixPlayingRef.current = false; setMixPlaying(false); const nodes = mixNodesRef.current; Object.keys(nodes).forEach((id) => { try { nodes[id].stop(0.8); } catch (e) {} delete nodes[id]; }); updateMediaSession(); };
   const setMixLevel = (id, v) => setMix((prev) => ({ ...prev, [id]: v }));
   const onMixSlide = (id, v) => { setMixLevel(id, v); if (v > 0 && !mixPlayingRef.current) startMix(); }; // touch a fader → it plays
+  // Saved, named blends. suggestMixName offers the loudest one or two sounds as a default name.
+  const suggestMixName = () => { const on = NATURE_IDS.filter((id) => (mix[id] || 0) > 0 && soundOwned(id)).sort((a, b) => (mix[b] || 0) - (mix[a] || 0)); const names = on.slice(0, 2).map((id) => (SOUND_BY_ID[id] || {}).name).filter(Boolean); return names.join(" & ") || "My mix"; };
+  const beginSaveMix = () => { setMixName(suggestMixName()); setSavingMix(true); };
+  const saveMixPreset = () => { const m = {}; NATURE_IDS.forEach((id) => { if ((mix[id] || 0) > 0 && soundOwned(id)) m[id] = mix[id]; }); if (!Object.keys(m).length) return; const name = (mixName.trim() || suggestMixName()).slice(0, 24); setMixPresets((prev) => [{ id: Date.now(), name, mix: m }, ...prev].slice(0, 12)); setSavingMix(false); setMixName(""); };
+  const deletePreset = (id) => setMixPresets((prev) => prev.filter((x) => x.id !== id));
+  const loadPreset = (p) => { setMix({ ...p.mix }); if (!mixPlayingRef.current) startMix(); };
+  useEffect(() => { try { localStorage.setItem("lull.mixPresets.v1", JSON.stringify(mixPresets)); } catch (e) {} }, [mixPresets]);
   useEffect(() => { try { localStorage.setItem("lull.mix.v1", JSON.stringify(mix)); } catch (e) {} if (mixPlayingRef.current) { applyMix(); updateMediaSession(); } }, [mix]);
   useEffect(() => { const h = () => { try { if (!document.hidden && audioRef.current && audioRef.current.state === "suspended" && (mixPlayingRef.current || scapeRef.current)) audioRef.current.resume(); } catch (e) {} }; document.addEventListener("visibilitychange", h); return () => document.removeEventListener("visibilitychange", h); }, []);
 
@@ -931,7 +940,7 @@ export default function Lull() {
           <span style={{ fontSize: 14, letterSpacing: 6, textTransform: "uppercase", fontWeight: 500, opacity: 0.82, paddingLeft: 6 }}>Lull</span>
           {false && (<button className="lull-btn" aria-label="theme" onClick={() => setLight((v) => !v)} style={{ position: "absolute", left: 0, padding: 8, opacity: 0.7 }}>{lightUI ? <Moon size={19} /> : <Sun size={19} />}</button>)}
           <div style={{ position: "absolute", right: 0, display: "flex", alignItems: "center", gap: 2 }}>
-            {screen === "home" && (<button className="lull-btn" aria-label="Ambient sounds" onClick={() => setMixerOpen(true)} style={{ padding: 8, opacity: 0.7, display: "flex" }}><Waves size={19} /></button>)}
+            {screen === "home" && (<button className="lull-btn" aria-label="Ambient sounds" onClick={() => setMixerOpen(true)} style={{ padding: 8, opacity: mixPlaying ? 1 : 0.7, display: "flex", color: mixPlaying ? "#8ce0b0" : undefined }}><Waves size={19} /></button>)}
             {screen === "home" && (<button className="lull-btn" aria-label="Your breaths" onClick={() => setShowHistory(true)} style={{ padding: 8, opacity: 0.7, display: "flex" }}><CalendarDays size={19} /></button>)}
             <button className="lull-btn" aria-label={soundOn ? "Mute sound" : "Unmute sound"} aria-pressed={soundOn} onClick={toggleSound} style={{ padding: 8, opacity: 0.7, display: "flex" }}>{soundOn ? <Volume2 size={20} /> : <VolumeX size={20} />}</button>
           </div>
@@ -1079,6 +1088,22 @@ export default function Lull() {
                 <span style={{ fontSize: 13, opacity: 0.5, letterSpacing: 0.5, marginLeft: 1 }}>›</span>
               </button>
             </div>
+            {mixPlaying && (() => {
+              const active = NATURE_IDS.filter((id) => (mix[id] || 0) > 0 && soundOwned(id));
+              if (!active.length) return null;
+              const names = active.map((id) => (SOUND_BY_ID[id] || {}).name).filter(Boolean).join(" · ");
+              return (
+                <div style={{ display: "flex", justifyContent: "center" }}>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 6px 5px 12px", borderRadius: 999, background: wa(0.05), border: "1px solid " + wa(0.13) }}>
+                    <button className="lull-btn" aria-label="Open ambient sounds" onClick={() => setMixerOpen(true)} style={{ display: "inline-flex", alignItems: "center", gap: 7, color: ink }}>
+                      <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: "50%", background: "#8ce0b0", boxShadow: "0 0 6px #8ce0b0" }} />
+                      <span style={{ fontSize: 12, fontWeight: 500, letterSpacing: 0.2, opacity: 0.82 }}>{names}</span>
+                    </button>
+                    <button className="lull-btn" aria-label="Stop ambient sound" onClick={stopMix} style={{ padding: "4px 12px", borderRadius: 999, fontSize: 11.5, fontWeight: 600, letterSpacing: 0.4, color: inkA(0.75), background: wa(0.08) }}>Stop</button>
+                  </div>
+                </div>
+              );
+            })()}
             {selectedOrb.kind === "coded" && (
             <div style={{ display: "flex", gap: 12, justifyContent: "center", padding: "2px 0 4px" }}>
               {Object.entries(THEMES).map(([id, t]) => { const sel = themeId === id; return (
@@ -1411,7 +1436,29 @@ export default function Lull() {
               <div style={{ marginTop: 32, display: "flex", justifyContent: "center" }}>
                 <button className="lull-btn" onClick={() => { if (mixPlaying) { stopMix(); return; } const anyOn = owned.some((id) => (mix[id] || 0) > 0); if (!anyOn) setMixLevel(owned[0], 0.6); startMix(); }} style={{ padding: "13px 44px", borderRadius: 999, fontSize: 15, fontWeight: 600, letterSpacing: 0.4, color: "#fff", background: "linear-gradient(180deg, #9a86ff 0%, #6f5cff 100%)", boxShadow: "0 12px 26px -12px rgba(111,92,255,0.9)" }}>{mixPlaying ? "Pause" : "Play"}</button>
               </div>
-              <p style={{ marginTop: 18, fontSize: 11.5, opacity: 0.4, textAlign: "center", letterSpacing: 0.3, lineHeight: 1.5 }}>Lock-screen controls appear while it plays. Your blend is saved on this device.</p>
+              <div style={{ marginTop: 28 }}>
+                <div style={{ fontSize: 11, letterSpacing: 3, textTransform: "uppercase", fontWeight: 600, opacity: 0.5, marginBottom: 12 }}>Saved mixes</div>
+                {mixPresets.length > 0 ? (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 9 }}>
+                    {mixPresets.map((pr) => (
+                      <span key={pr.id} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 7px 7px 14px", borderRadius: 999, background: wa(0.06), border: "1px solid " + wa(0.16) }}>
+                        <button className="lull-btn" onClick={() => loadPreset(pr)} style={{ fontSize: 13.5, fontWeight: 500, letterSpacing: 0.2, color: ink }}>{pr.name}</button>
+                        <button className="lull-btn" aria-label={"Delete " + pr.name} onClick={() => deletePreset(pr.id)} style={{ width: 20, height: 20, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, lineHeight: 1, color: inkA(0.5), background: wa(0.09) }}>×</button>
+                      </span>
+                    ))}
+                  </div>
+                ) : (<p style={{ fontSize: 12.5, opacity: 0.42, margin: 0, lineHeight: 1.5 }}>Dial in a blend, then save it to bring it back anytime.</p>)}
+                {savingMix ? (
+                  <div style={{ display: "flex", gap: 8, marginTop: 14, alignItems: "center" }}>
+                    <input autoFocus value={mixName} maxLength={24} onChange={(e) => setMixName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") saveMixPreset(); else if (e.key === "Escape") { setSavingMix(false); setMixName(""); } }} placeholder="Name this mix" style={{ flex: 1, minWidth: 0, padding: "10px 14px", borderRadius: 999, background: wa(0.06), border: "1px solid " + wa(0.22), color: ink, fontSize: 14, fontFamily: "inherit", outline: "none" }} />
+                    <button className="lull-btn" onClick={saveMixPreset} style={{ padding: "10px 18px", borderRadius: 999, fontSize: 13.5, fontWeight: 600, color: "#fff", background: "linear-gradient(180deg, #9a86ff 0%, #6f5cff 100%)" }}>Save</button>
+                    <button className="lull-btn" onClick={() => { setSavingMix(false); setMixName(""); }} style={{ padding: "10px 4px", fontSize: 13, color: inkA(0.5) }}>Cancel</button>
+                  </div>
+                ) : (owned.some((id) => (mix[id] || 0) > 0) && (
+                  <button className="lull-btn" onClick={beginSaveMix} style={{ marginTop: 14, padding: "9px 18px", borderRadius: 999, fontSize: 13, fontWeight: 600, letterSpacing: 0.3, color: ink, background: wa(0.06), border: "1px dashed " + wa(0.3), display: "inline-flex", alignItems: "center", gap: 7 }}><span aria-hidden="true" style={{ fontSize: 14, opacity: 0.85 }}>＋</span>Save this mix</button>
+                ))}
+              </div>
+              <p style={{ marginTop: 22, fontSize: 11.5, opacity: 0.4, textAlign: "center", letterSpacing: 0.3, lineHeight: 1.5 }}>Lock-screen controls appear while it plays. Your blend is saved on this device.</p>
             </>);
           })()}
         </div>
