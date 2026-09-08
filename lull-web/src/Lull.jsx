@@ -1104,6 +1104,15 @@ export default function Lull() {
                 </div>
               );
             })()}
+            {mixPresets.length > 0 && (
+              <div style={{ display: "flex", gap: 8, overflowX: "auto", padding: "0 2px 2px", justifyContent: mixPresets.length > 2 ? "flex-start" : "center", WebkitOverflowScrolling: "touch" }}>
+                {mixPresets.map((pr) => (
+                  <button key={pr.id} className="lull-btn" aria-label={"Play mix " + pr.name} onClick={() => loadPreset(pr)} style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 7, padding: "7px 14px", borderRadius: 999, background: wa(0.05), border: "1px solid " + wa(0.14), color: ink, fontSize: 12.5, fontWeight: 500, letterSpacing: 0.2 }}>
+                    <Waves size={13} style={{ opacity: 0.55 }} />{pr.name}
+                  </button>
+                ))}
+              </div>
+            )}
             {selectedOrb.kind === "coded" && (
             <div style={{ display: "flex", gap: 12, justifyContent: "center", padding: "2px 0 4px" }}>
               {Object.entries(THEMES).map(([id, t]) => { const sel = themeId === id; return (
@@ -1196,7 +1205,7 @@ export default function Lull() {
 
           {/* Your sounds — free + everything you own, tap to breathe with it */}
           <div style={{ fontSize: 11, letterSpacing: 3, textTransform: "uppercase", fontWeight: 600, opacity: 0.5, marginBottom: 13 }}>Your sounds</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(94px, 1fr))", gap: 11, marginBottom: allOwned ? 4 : 30 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(94px, 1fr))", gap: 11, marginBottom: 16 }}>
             {SOUND.filter((s) => soundOwned(s.id)).map((s) => {
               const sel = scapeId === s.id;
               return (
@@ -1208,7 +1217,7 @@ export default function Lull() {
               );
             })}
           </div>
-          {soundOwned("binaural") && (<p style={{ fontSize: 12, opacity: 0.5, margin: "-14px 0 26px", letterSpacing: 0.2 }}>Binaural is best with headphones.</p>)}
+          {soundOwned("binaural") && (<p style={{ fontSize: 12, opacity: 0.5, margin: "0 0 24px", letterSpacing: 0.2 }}>Binaural is best with headphones.</p>)}
 
           {/* Offers — bundle hero + packs, each hidden once fully owned */}
           {!allOwned && (
