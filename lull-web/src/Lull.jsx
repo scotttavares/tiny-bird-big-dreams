@@ -108,6 +108,7 @@ const PATTERN_INFO = {
   sleep: {
     drift: "Inhale 4 · exhale 8 — a slow, long exhale to help you let go.",
     calm: "Inhale 4 · hold 7 · exhale 8 — the 4-7-8 wind-down, for sleep.",
+    noise: "Just a steady hush — no breathing to follow. Keeps playing as your screen goes dark.",
     custom: "Your own rhythm.",
   },
 };
@@ -314,6 +315,26 @@ const BOWL_PARTIALS = (done) => [{ r: 1, g: 1, d: done ? 6.5 : 3.4 }, { r: 2.76,
 // fetch + decodeAudioData + BufferSource: the media element uses the browser's native streaming
 // decoder, which plays MP3 reliably across Chrome, Safari and Firefox — decodeAudioData does not
 // (it rejects some MP3s in Safari/Firefox and fails silently). Add ocean/forest/fire here as they land.
+// A soft, steady hush generated at runtime (low-passed white noise) for the sleep "White noise" mode.
+// Encoded as a WAV data URI so it plays through the same media-element path as the recorded beds —
+// it keeps going with the screen off and shows lock-screen controls. Normalized to ~0.2 RMS.
+function makeHushDataUri() {
+  try {
+    const sr = 44100, n = sr * 6; const d = new Float32Array(n);
+    let prev = 0; for (let i = 0; i < n; i++) { const w = Math.random() * 2 - 1; prev = prev + 0.16 * (w - prev); d[i] = prev; }
+    let sum = 0; for (let i = 0; i < n; i++) sum += d[i] * d[i]; const rms = Math.sqrt(sum / n) || 1;
+    const g0 = 0.2 / rms; let peak = 0; for (let i = 0; i < n; i++) { const v = Math.abs(d[i] * g0); if (v > peak) peak = v; }
+    const g = peak > 0.95 ? (0.95 / peak) * g0 : g0;
+    const buf = new ArrayBuffer(44 + n * 2); const dv = new DataView(buf);
+    const wr = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
+    wr(0, "RIFF"); dv.setUint32(4, 36 + n * 2, true); wr(8, "WAVE"); wr(12, "fmt "); dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true); dv.setUint32(24, sr, true); dv.setUint32(28, sr * 2, true); dv.setUint16(32, 2, true); dv.setUint16(34, 16, true); wr(36, "data"); dv.setUint32(40, n * 2, true);
+    let o = 44; for (let i = 0; i < n; i++) { const s = Math.max(-1, Math.min(1, d[i] * g)); dv.setInt16(o, s < 0 ? s * 0x8000 : s * 0x7fff, true); o += 2; }
+    let bin = ""; const u8 = new Uint8Array(buf); for (let i = 0; i < u8.length; i += 0x8000) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+    return "data:audio/wav;base64," + btoa(bin);
+  } catch (e) { return ""; }
+}
+let _hushUrl = null; const hushUrl = () => (_hushUrl || (_hushUrl = makeHushDataUri()));
+
 const NATURE_AUDIO = {
   rain: { url: "/assets/rain.mp3", gain: 24 },
   ocean: { url: "/assets/ocean.mp3", gain: 23 },
@@ -321,6 +342,8 @@ const NATURE_AUDIO = {
   // Fire's crackles are sharp transients (very high crest), so a plain gain loud enough to hear the
   // bed would clip the pops. `limit` inserts a limiter that tames the peaks so we can bring it up.
   fire: { url: "/assets/fire.mp3", gain: 14, limit: true },
+  // White noise: generated lazily on first use (url filled in by createNatureNode via hushUrl()).
+  noise: { url: "", gain: 1.0 },
 };
 const NATURE_IDS = SOUND.filter((s) => NATURE_AUDIO[s.id]).map((s) => s.id); // nature bed ids, in registry order
 
@@ -328,6 +351,8 @@ const NATURE_IDS = SOUND.filter((s) => NATURE_AUDIO[s.id]).map((s) => s.id); // 
 // file's baked gain; `setLevel` adjusts it live. Shared by breathing sessions and the standalone mixer.
 function createNatureNode(ctx, out, id, level) {
   const conf = NATURE_AUDIO[id]; if (!conf) return null;
+  if (!conf.url && id === "noise") conf.url = hushUrl(); // generate the hush once, on first play
+  if (!conf.url) return null;
   const g = ctx.createGain(); g.gain.value = 0.0001; g.connect(out);
   let head = g;
   if (conf.limit) {
@@ -488,6 +513,7 @@ export default function Lull() {
       sleep: {
         drift: { name: "Drift", ratio: "4 · 8", phases: [{ key: "inhale", label: "Breathe in", dur: 4, scale: HI, tone: "cool" }, { key: "exhale", label: "Let go", dur: 8, scale: LO, tone: "warm" }] },
         calm: { name: "Calm", ratio: "4 · 7 · 8", phases: [{ key: "inhale", label: "Breathe in", dur: 4, scale: HI, tone: "cool" }, { key: "hold", label: "Hold", dur: 7, scale: HI, tone: "cool" }, { key: "exhale", label: "Let go", dur: 8, scale: LO, tone: "warm" }] },
+        noise: { name: "White noise", ratio: "Just sound", soundOnly: true, sound: "noise", phases: [{ key: "hold", label: "", dur: 6, scale: LO, tone: "cool" }] },
       },
     };
     if (customPat) {
@@ -534,6 +560,7 @@ export default function Lull() {
   const pausedRef = useRef(false); const phaseTimeout = useRef(null); const tickRef = useRef(null);
   const soundRef = useRef(soundOn); const modeRef = useRef(mode); const patternIdRef = useRef(patternId);
   const audioRef = useRef(null); const nodesRef = useRef(null); const scapeRef = useRef(null); const brownRef = useRef(null); const whiteRef = useRef(null); const scapeIdRef = useRef("bowls");
+  const soundOnlyRef = useRef(false); const sessionScapeRef = useRef(null); // sound-only sleep: no breathing, a forced bed
   const particleRef = useRef(null);
   const moodBeforeRef = useRef(null); const pendingStartRef = useRef(null); // carry the pre-session mood + intent through the check-in
   // Drive the particle-sphere canvas while a particle orb is selected; clean up on change/unmount.
@@ -605,7 +632,7 @@ export default function Lull() {
   };
   const buildAmbience = () => {
     if (!audioRef.current || !nodesRef.current || scapeRef.current) return;
-    scapeRef.current = createSoundscape(scapeIdRef.current, audioRef.current, nodesRef.current.master, nodesRef.current.reverb, { white: whiteRef.current, brown: brownRef.current }, modeRef.current);
+    scapeRef.current = createSoundscape(sessionScapeRef.current || scapeIdRef.current, audioRef.current, nodesRef.current.master, nodesRef.current.reverb, { white: whiteRef.current, brown: brownRef.current }, modeRef.current);
   };
   const teardownAmbience = (fade = 1.2) => { try { if (scapeRef.current) scapeRef.current.stop(fade); } catch (e) {} scapeRef.current = null; };
   const breathAudio = (phase) => { try { if (scapeRef.current) scapeRef.current.onPhase(phase, modeRef.current); } catch (e) {} };
@@ -684,6 +711,7 @@ export default function Lull() {
       elapsedRef.current += 0.2;
       setRemaining(Math.max(targetRef.current - elapsedRef.current, 0));
       setProgress(Math.min(elapsedRef.current / targetRef.current, 1));
+      if (soundOnlyRef.current && elapsedRef.current >= targetRef.current) finishSession(); // no breathing phase to end it
     }, 200);
   }, []);
 
@@ -695,15 +723,20 @@ export default function Lull() {
     if (mixPlayingRef.current) stopMix(); // a session's bed replaces the standalone ambient mix
     if (pid !== patternId) { setPatternId(pid); patternIdRef.current = pid; }
     phasesRef.current = p.phases; idxRef.current = 0; elapsedRef.current = 0;
+    soundOnlyRef.current = !!p.soundOnly; sessionScapeRef.current = p.sound || null;
     targetRef.current = (typeof durSecOverride === "number" && durSecOverride > 0) ? durSecOverride : durationMin * 60;
     pausedRef.current = false; setPaused(false); setRemaining(targetRef.current); setProgress(0); setScreen("active");
-    ensureAudio(); if (soundRef.current) { buildAmbience(); bowl("start"); }
-    startTick(); runPhase();
+    ensureAudio(); if (soundRef.current) { buildAmbience(); if (!p.soundOnly) bowl("start"); }
+    startTick();
+    if (p.soundOnly) {
+      setPhaseLabel(""); setTone("cool"); setOrb({ scale: 0.88, dur: 4, ease: "ease" });
+      try { if ("mediaSession" in navigator) { navigator.mediaSession.metadata = new window.MediaMetadata({ title: p.name, artist: "Lull", album: "Sleep", artwork: [{ src: "/icon-512.png", sizes: "512x512", type: "image/png" }] }); navigator.mediaSession.playbackState = "playing"; navigator.mediaSession.setActionHandler("pause", () => pauseSession()); navigator.mediaSession.setActionHandler("play", () => resumeSession()); } } catch (e) {}
+    } else runPhase();
   };
   const pauseSession = () => { pausedRef.current = true; setPaused(true); if (phaseTimeout.current) clearTimeout(phaseTimeout.current); setPhaseLabel("Paused"); setOrb({ scale: prefersReduced ? 0.95 : 0.92, dur: 0.8, ease: "ease" }); softenAmbience(); };
-  const resumeSession = () => { pausedRef.current = false; setPaused(false); ensureAudio(); if (soundRef.current && !scapeRef.current) buildAmbience(); runPhase(); };
-  const goHome = () => { clearTimers(); pausedRef.current = false; setPaused(false); teardownAmbience(0.9); setScreen("home"); setOrb({ scale: LO, dur: 1, ease: "ease" }); setRemaining(durationMin * 60); setProgress(0); };
-  function finishSession() { clearTimers(); pausedRef.current = false; setPaused(false); if (modeRef.current !== "sleep") bowl("done"); teardownAmbience(modeRef.current === "sleep" ? 3.4 : 1.6); setMoodAfter(null); try { const entry = { t: Date.now(), mode: modeRef.current, pattern: patternIdRef.current, min: Math.max(1, Math.round(targetRef.current / 60)), moodBefore: (typeof moodBeforeRef.current === "number" ? moodBeforeRef.current : null), moodAfter: null }; setSessions((prev) => { const next = [...prev, entry]; saveHist(next); return next; }); } catch (e) {} setScreen("done"); }
+  const resumeSession = () => { pausedRef.current = false; setPaused(false); ensureAudio(); if (soundRef.current && !scapeRef.current) buildAmbience(); if (soundOnlyRef.current) { setPhaseLabel(""); setOrb({ scale: 0.88, dur: 3, ease: "ease" }); } else runPhase(); };
+  const goHome = () => { clearTimers(); pausedRef.current = false; setPaused(false); soundOnlyRef.current = false; sessionScapeRef.current = null; teardownAmbience(0.9); setScreen("home"); setOrb({ scale: LO, dur: 1, ease: "ease" }); setRemaining(durationMin * 60); setProgress(0); try { updateMediaSession(); } catch (e) {} };
+  function finishSession() { clearTimers(); pausedRef.current = false; setPaused(false); soundOnlyRef.current = false; sessionScapeRef.current = null; if (modeRef.current !== "sleep") bowl("done"); teardownAmbience(modeRef.current === "sleep" ? 3.4 : 1.6); setMoodAfter(null); try { const entry = { t: Date.now(), mode: modeRef.current, pattern: patternIdRef.current, min: Math.max(1, Math.round(targetRef.current / 60)), moodBefore: (typeof moodBeforeRef.current === "number" ? moodBeforeRef.current : null), moodAfter: null }; setSessions((prev) => { const next = [...prev, entry]; saveHist(next); return next; }); } catch (e) {} setScreen("done"); }
   // A gentle, skippable calm check before breathing → sets moodBefore, then starts. Sleep and SOS
   // (sos:true patterns, e.g. Reset) skip it entirely — no friction when someone needs to calm down now.
   const beginWithCheckin = (patOverride, durSecOverride) => {
@@ -1074,8 +1107,8 @@ export default function Lull() {
 
         {screen === "home" && (
           <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 12 }}>
-            <div style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
-              <button className="lull-btn" aria-label="Choose your orb and sound" onClick={() => setOrbStoreOpen(true)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 14px 6px 6px", borderRadius: 999, background: wa(0.06), border: "1px solid " + wa(0.16), color: ink }}>
+            <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", alignItems: "center", gap: 8 }}>
+              <button className="lull-btn" aria-label="Choose your orb and sound" onClick={() => setOrbStoreOpen(true)} style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 10, padding: "6px 14px 6px 6px", borderRadius: 999, background: wa(0.06), border: "1px solid " + wa(0.16), color: ink }}>
                 <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   {orbChip(orbId, 26)}
                   <span style={{ fontSize: 13, fontWeight: 500, letterSpacing: 0.3 }}>{selectedOrb.name}</span>
@@ -1087,6 +1120,11 @@ export default function Lull() {
                 </span>
                 <span style={{ fontSize: 13, opacity: 0.5, letterSpacing: 0.5, marginLeft: 1 }}>›</span>
               </button>
+              {mixPresets.map((pr) => (
+                <button key={pr.id} className="lull-btn" aria-label={"Play mix " + pr.name} onClick={() => loadPreset(pr)} style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 7, padding: "8px 14px", borderRadius: 999, background: wa(0.05), border: "1px solid " + wa(0.14), color: ink, fontSize: 12.5, fontWeight: 500, letterSpacing: 0.2 }}>
+                  <Waves size={13} style={{ opacity: 0.55 }} />{pr.name}
+                </button>
+              ))}
             </div>
             {mixPlaying && (() => {
               const active = NATURE_IDS.filter((id) => (mix[id] || 0) > 0 && soundOwned(id));
@@ -1104,15 +1142,6 @@ export default function Lull() {
                 </div>
               );
             })()}
-            {mixPresets.length > 0 && (
-              <div style={{ display: "flex", gap: 8, overflowX: "auto", padding: "0 2px 2px", justifyContent: mixPresets.length > 2 ? "flex-start" : "center", WebkitOverflowScrolling: "touch" }}>
-                {mixPresets.map((pr) => (
-                  <button key={pr.id} className="lull-btn" aria-label={"Play mix " + pr.name} onClick={() => loadPreset(pr)} style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 7, padding: "7px 14px", borderRadius: 999, background: wa(0.05), border: "1px solid " + wa(0.14), color: ink, fontSize: 12.5, fontWeight: 500, letterSpacing: 0.2 }}>
-                    <Waves size={13} style={{ opacity: 0.55 }} />{pr.name}
-                  </button>
-                ))}
-              </div>
-            )}
             {selectedOrb.kind === "coded" && (
             <div style={{ display: "flex", gap: 12, justifyContent: "center", padding: "2px 0 4px" }}>
               {Object.entries(THEMES).map(([id, t]) => { const sel = themeId === id; return (
