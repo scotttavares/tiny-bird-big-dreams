@@ -410,8 +410,6 @@ export default function Lull() {
         steady: { name: "Steady", ratio: "4 · 4 · 4 · 4", goal: "Find focus", phases: [{ key: "inhale", label: "Breathe in", dur: 4, scale: HI, tone: "cool" }, { key: "hold", label: "Hold", dur: 4, scale: HI, tone: "cool" }, { key: "exhale", label: "Breathe out", dur: 4, scale: LO, tone: "warm" }, { key: "hold", label: "Hold", dur: 4, scale: LO, tone: "warm" }] },
         ease: { name: "Ease", ratio: "4 · 6", goal: "Everyday calm", phases: [{ key: "inhale", label: "Breathe in", dur: 4, scale: HI, tone: "cool" }, { key: "exhale", label: "Breathe out", dur: 6, scale: LO, tone: "warm" }] },
         coherence: { name: "Coherence", ratio: "5 · 5", goal: "Find balance", phases: [{ key: "inhale", label: "Breathe in", dur: 5, scale: HI, tone: "cool" }, { key: "exhale", label: "Breathe out", dur: 5, scale: LO, tone: "warm" }] },
-        // SOS: the physiological sigh — a double inhale then a long exhale, the fastest way to down-shift stress.
-        sigh: { name: "Reset", ratio: "Physiological sigh", goal: "Calm fast", sos: true, phases: [{ key: "inhale", label: "Breathe in", dur: 2.2, scale: HI * 0.94, tone: "cool" }, { key: "inhale", label: "Sip more air", dur: 1.1, scale: HI, tone: "cool" }, { key: "exhale", label: "Long exhale", dur: 6.7, scale: LO, tone: "warm" }] },
       },
       // Guided meditations — a calm breath keeps the orb moving while short cues (the phase labels)
       // lead a body scan / gratitude / presence practice. Every cue pair ends on an exhale so the
@@ -602,7 +600,7 @@ export default function Lull() {
   };
   const pauseSession = () => { pausedRef.current = true; setPaused(true); if (phaseTimeout.current) clearTimeout(phaseTimeout.current); setPhaseLabel("Paused"); setOrb({ scale: prefersReduced ? 0.95 : 0.92, dur: 0.8, ease: "ease" }); softenAmbience(); };
   const resumeSession = () => { pausedRef.current = false; setPaused(false); ensureAudio(); if (soundRef.current && !scapeRef.current) buildAmbience(); runPhase(); };
-  const goHome = () => { clearTimers(); pausedRef.current = false; setPaused(false); teardownAmbience(0.9); setScreen("home"); setOrb({ scale: LO, dur: 1, ease: "ease" }); setRemaining(durationMin * 60); setProgress(0); setPatternId((pid) => pid === "sigh" ? DEFAULT_PATTERN[mode] : pid); };
+  const goHome = () => { clearTimers(); pausedRef.current = false; setPaused(false); teardownAmbience(0.9); setScreen("home"); setOrb({ scale: LO, dur: 1, ease: "ease" }); setRemaining(durationMin * 60); setProgress(0); };
   function finishSession() { clearTimers(); pausedRef.current = false; setPaused(false); if (modeRef.current !== "sleep") bowl("done"); teardownAmbience(modeRef.current === "sleep" ? 3.4 : 1.6); setMoodAfter(null); try { const entry = { t: Date.now(), mode: modeRef.current, pattern: patternIdRef.current, min: Math.max(1, Math.round(targetRef.current / 60)), moodBefore: (typeof moodBeforeRef.current === "number" ? moodBeforeRef.current : null), moodAfter: null }; setSessions((prev) => { const next = [...prev, entry]; saveHist(next); return next; }); } catch (e) {} setScreen("done"); }
   // A gentle, skippable calm check before breathing → sets moodBefore, then starts. Sleep and SOS
   // (sos:true patterns, e.g. Reset) skip it entirely — no friction when someone needs to calm down now.
@@ -972,13 +970,6 @@ export default function Lull() {
                 <span style={{ fontSize: 13, fontWeight: 500, letterSpacing: 0.3 }}>{(SOUND_BY_ID[scapeId] || SOUND[0]).name}</span>
                 <span style={{ fontSize: 12, opacity: 0.5, letterSpacing: 0.5 }}>Sounds ›</span>
               </button>
-              {mode === "breathe" && (
-                <button className="lull-btn" onClick={() => beginWithCheckin("sigh", 90)} aria-label="Reset — a 90-second physiological-sigh session to calm quickly" style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 15px 8px 13px", borderRadius: 999, background: "linear-gradient(180deg, " + wa(0.11) + ", " + wa(0.04) + ")", border: "1px solid " + wa(0.2), color: ink }}>
-                  <span aria-hidden style={{ fontSize: 14, opacity: 0.85 }}>✦</span>
-                  <span style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: 0.3 }}>Reset</span>
-                  <span style={{ fontSize: 11.5, opacity: 0.58, letterSpacing: 0.2 }}>· 90s</span>
-                </button>
-              )}
             </div>
             {selectedOrb.kind === "coded" && (
             <div style={{ display: "flex", gap: 12, justifyContent: "center", padding: "2px 0 4px" }}>
@@ -986,7 +977,7 @@ export default function Lull() {
                 <button key={id} className="lull-dot lull-btn" aria-label={`Orb colour: ${t.name}`} aria-pressed={sel} title={t.name} onClick={() => setThemeId(id)} style={{ width: 30, height: 30, borderRadius: "50%", padding: 0, backgroundImage: t.swatch, border: "1px solid " + wa(0.3), boxShadow: sel ? (lightUI ? "0 0 0 2px rgba(70,50,140,0.8), 0 3px 12px rgba(80,60,140,0.25)" : "0 0 0 2px rgba(255,255,255,0.9), 0 3px 12px rgba(0,0,0,0.45)") : (lightUI ? "0 2px 8px rgba(80,60,140,0.2)" : "0 2px 8px rgba(0,0,0,0.35)"), transform: sel ? "scale(1.14)" : "scale(1)", transition: "transform .2s ease, box-shadow .2s ease" }} />); })}
             </div>
             )}
-            {(() => { const entries = Object.entries(pats).filter(([id]) => id !== "sigh"); const cols = entries.length === 4 ? 2 : Math.min(entries.length, 3); return (
+            {(() => { const entries = Object.entries(pats); const cols = entries.length === 4 ? 2 : Math.min(entries.length, 3); return (
               <div style={{ ...segWrap, display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
                 {entries.map(([id, p]) => { const sel = patternId === id; return (<button key={id} className="lull-seg lull-btn" aria-pressed={sel} onClick={() => setPatternId(id)} style={seg(sel)}><span style={{ fontSize: 14, fontWeight: 500 }}>{p.name}</span><span style={{ fontSize: 10.5, opacity: 0.6, letterSpacing: 0.3, textAlign: "center" }}>{p.goal || p.ratio}</span></button>); })}
               </div>
