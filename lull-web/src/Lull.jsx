@@ -992,7 +992,7 @@ export default function Lull() {
               </div>
             ); })()}
             {PATTERN_INFO[mode] && PATTERN_INFO[mode][patternId] && (<p style={{ fontSize: 12.5, opacity: 0.5, textAlign: "center", margin: "0 4px", lineHeight: 1.5, letterSpacing: 0.2, transition: "opacity .2s ease" }}>{PATTERN_INFO[mode][patternId]}</p>)}
-            {mode !== "meditate" && (<button className="lull-btn" onClick={openCustom} style={{ alignSelf: "center", padding: "2px 0 0", fontSize: 12.5, letterSpacing: 0.4, color: inkA(0.5) }}>{customPat ? "✎ Edit your pattern" : "✎ Make your own"}</button>)}
+            {mode !== "meditate" && (<button className="lull-btn" onClick={openCustom} style={{ alignSelf: "center", display: "flex", alignItems: "center", gap: 8, padding: "9px 18px", borderRadius: 999, fontSize: 13, fontWeight: 600, letterSpacing: 0.3, color: ink, background: wa(0.06), border: "1px dashed " + wa(0.32), boxShadow: "0 2px 10px -6px rgba(0,0,0,0.5)" }}><span aria-hidden style={{ fontSize: 13, opacity: 0.85 }}>✎</span>{customPat ? "Edit your pattern" : "Make your own"}</button>)}
             {(() => {
               const durs = DURATIONS[mode]; const isSleep = mode === "sleep";
               const cols = durs.length + (isSleep ? 1 : 0);
