@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { Volume2, VolumeX, Sun, Moon } from "lucide-react";
+import { Volume2, VolumeX, Sun, Moon, CalendarDays } from "lucide-react";
 
 // Lull — a minute to breathe.  Tiny Bird, Big Dreams.
 // A living smoke-plasma orb (six themes, three swirl styles) that breathes with you.
@@ -503,6 +503,7 @@ export default function Lull() {
   const [light, setLight] = useState(false);
   const [sessions, setSessions] = useState(() => (typeof window !== "undefined" ? loadHist() : []));
   const [showHistory, setShowHistory] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false); const [copied, setCopied] = useState(false);
   const [preCheck, setPreCheck] = useState(false);      // pre-session mood check-in overlay
   const [moodAfter, setMoodAfter] = useState(null);     // done-screen mood → reveals the calm lift
 
@@ -658,8 +659,11 @@ export default function Lull() {
   };
   // Post-session tap patches the just-created entry with moodAfter and reveals the lift.
   const recordMoodAfter = (mood) => { setMoodAfter(mood); setSessions((prev) => { if (!prev.length) return prev; const next = prev.slice(); next[next.length - 1] = { ...next[next.length - 1], moodAfter: mood }; saveHist(next); return next; }); };
-  // Your data, yours: download every session/mood as JSON, or erase it all from this device.
-  const exportData = () => { try { const blob = new Blob([JSON.stringify({ app: "Lull", exported: new Date().toISOString(), sessions }, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "lull-breaths.json"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000); } catch (e) {} };
+  // Your data, yours: view/copy/download every session & mood, or erase it all from this device.
+  const exportJson = () => JSON.stringify({ app: "Lull", exported: new Date().toISOString(), sessions }, null, 2);
+  const exportData = () => { setCopied(false); setExportOpen(true); };
+  const downloadExport = () => { try { const blob = new Blob([exportJson()], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "lull-breaths.json"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000); } catch (e) {} };
+  const copyExport = async () => { let ok = false; try { await navigator.clipboard.writeText(exportJson()); ok = true; } catch (e) {} if (!ok) { try { const ta = document.getElementById("lull-export-ta"); if (ta) { ta.focus(); ta.select(); ok = document.execCommand("copy"); } } catch (e) {} } setCopied(ok); if (ok) setTimeout(() => setCopied(false), 2200); };
   const eraseData = () => { if (typeof window !== "undefined" && !window.confirm("Erase all your breaths and check-ins? This stays on your device and can't be undone.")) return; try { localStorage.removeItem(HIST_KEY); } catch (e) {} setSessions([]); setShowHistory(false); };
   const switchMode = (m) => { if (m === mode) return; clearTimers(); teardownAmbience(0.4); setMode(m); setScreen("home"); setPatternId(DEFAULT_PATTERN[m]); setDurationMin(DEFAULT_DUR[m]); setRemaining(DEFAULT_DUR[m] * 60); setProgress(0); setTone("cool"); setOrb({ scale: LO, dur: 1, ease: "ease" }); };
   const toggleSound = () => {
@@ -868,7 +872,10 @@ export default function Lull() {
         <div style={{ position: "relative", width: "100%", display: "flex", alignItems: "center", justifyContent: "center", minHeight: 36, marginBottom: 8 }}>
           <span style={{ fontSize: 14, letterSpacing: 6, textTransform: "uppercase", fontWeight: 500, opacity: 0.82, paddingLeft: 6 }}>Lull</span>
           {false && (<button className="lull-btn" aria-label="theme" onClick={() => setLight((v) => !v)} style={{ position: "absolute", left: 0, padding: 8, opacity: 0.7 }}>{lightUI ? <Moon size={19} /> : <Sun size={19} />}</button>)}
-          <button className="lull-btn" aria-label={soundOn ? "Mute sound" : "Unmute sound"} aria-pressed={soundOn} onClick={toggleSound} style={{ position: "absolute", right: 0, padding: 8, opacity: 0.7, display: "flex" }}>{soundOn ? <Volume2 size={20} /> : <VolumeX size={20} />}</button>
+          <div style={{ position: "absolute", right: 0, display: "flex", alignItems: "center", gap: 2 }}>
+            {screen === "home" && (<button className="lull-btn" aria-label="Your breaths" onClick={() => setShowHistory(true)} style={{ padding: 8, opacity: 0.7, display: "flex" }}><CalendarDays size={19} /></button>)}
+            <button className="lull-btn" aria-label={soundOn ? "Mute sound" : "Unmute sound"} aria-pressed={soundOn} onClick={toggleSound} style={{ padding: 8, opacity: 0.7, display: "flex" }}>{soundOn ? <Volume2 size={20} /> : <VolumeX size={20} />}</button>
+          </div>
         </div>
 
         {screen !== "done" && (<p style={{ fontSize: 13, opacity: 0.45, margin: "2px 0 0", letterSpacing: 0.3, minHeight: 18 }}>{tagline}</p>)}
@@ -1309,6 +1316,22 @@ export default function Lull() {
               <div style={{ paddingTop: 16, fontSize: 12.5, opacity: 0.4, textAlign: "center", letterSpacing: 0.3 }}>No streaks. No goals. Just the breaths you’ve taken. Private to this device.</div>
             </>);
           })()}
+        </div>
+      )}
+
+      {exportOpen && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 70, backgroundColor: groundSolid, backgroundImage: groundBg, color: ink, display: "flex", flexDirection: "column", padding: "max(30px, calc(env(safe-area-inset-top) + 12px)) 26px calc(34px + env(safe-area-inset-bottom))", overflow: "hidden" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+            <span style={{ fontSize: 12, letterSpacing: 5, textTransform: "uppercase", fontWeight: 500, opacity: 0.6 }}>Your breaths</span>
+            <button className="lull-btn" aria-label="Close" onClick={() => setExportOpen(false)} style={{ padding: "6px 4px", opacity: 0.75, fontSize: 15 }}>Done</button>
+          </div>
+          <p style={{ fontSize: 13, lineHeight: 1.5, opacity: 0.55, margin: "0 0 16px", maxWidth: "44ch" }}>Everything Lull has saved — {sessions.length} {sessions.length === 1 ? "session" : "sessions"}. Copy it or download it as a file. It never leaves your device.</p>
+          <textarea id="lull-export-ta" readOnly value={exportJson()} onFocus={(e) => e.target.select()} spellCheck={false} style={{ flex: 1, minHeight: 0, width: "100%", resize: "none", boxSizing: "border-box", padding: 14, borderRadius: 16, background: wa(0.05), border: "1px solid " + wa(0.14), color: inkA(0.85), fontSize: 12, lineHeight: 1.5, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", WebkitOverflowScrolling: "touch" }} />
+          <div style={{ marginTop: 16, display: "flex", gap: 10, justifyContent: "center" }}>
+            <button className="lull-btn" onClick={copyExport} style={{ padding: "11px 22px", borderRadius: 999, fontSize: 14, fontWeight: 600, letterSpacing: 0.3, color: "#fff", background: "linear-gradient(180deg, #9a86ff 0%, #6f5cff 100%)", boxShadow: "0 10px 22px -12px rgba(111,92,255,0.9)" }}>{copied ? "Copied ✓" : "Copy"}</button>
+            <button className="lull-btn" onClick={downloadExport} style={{ padding: "11px 20px", borderRadius: 999, fontSize: 14, fontWeight: 500, letterSpacing: 0.3, color: ink, background: wa(0.06), border: "1px solid " + wa(0.16) }}>Download file</button>
+          </div>
+          <p style={{ paddingTop: 14, fontSize: 11.5, opacity: 0.4, textAlign: "center", letterSpacing: 0.3, lineHeight: 1.5 }}>On phones, Copy is the reliable one — paste into Notes, email or a doc to keep it.</p>
         </div>
       )}
 
