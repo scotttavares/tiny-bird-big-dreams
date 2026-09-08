@@ -88,9 +88,9 @@ const AUDIO = {
   breathe: { padFreqs: [146.83, 220.0, 293.66], padFilterLo: 480, padFilterHi: 940, padPeak: 0.2, padLow: 0.06, noise: 0.012, noiseFilter: 520, bowlIn: 528, bowlOut: 396, bowlVol: 0.085 },
   sleep: { padFreqs: [98.0, 146.83, 196.0], padFilterLo: 280, padFilterHi: 520, padPeak: 0.16, padLow: 0.05, noise: 0.016, noiseFilter: 320, bowlIn: 396, bowlOut: 264, bowlVol: 0.05 },
 };
-const DURATIONS = { breathe: [1, 3, 5], sleep: [15, 30, 60] };
-const DEFAULT_PATTERN = { breathe: "calm", sleep: "drift" };
-const DEFAULT_DUR = { breathe: 3, sleep: 15 };
+const DURATIONS = { breathe: [1, 3, 5], meditate: [3, 5, 10], sleep: [15, 30, 60] };
+const DEFAULT_PATTERN = { breathe: "calm", meditate: "body", sleep: "drift" };
+const DEFAULT_DUR = { breathe: 3, meditate: 5, sleep: 15 };
 // Soundscapes: three ship free; others unlock via a sound pack (or the Everything bundle).
 // Each is generated procedurally in createSoundscape — no audio files. `pack` names the pack it belongs to.
 const SOUND = [
@@ -386,6 +386,32 @@ export default function Lull() {
         // SOS: the physiological sigh — a double inhale then a long exhale, the fastest way to down-shift stress.
         sigh: { name: "Reset", ratio: "Physiological sigh", goal: "Calm fast", sos: true, phases: [{ key: "inhale", label: "Breathe in", dur: 2.2, scale: HI * 0.94, tone: "cool" }, { key: "inhale", label: "Sip more air", dur: 1.1, scale: HI, tone: "cool" }, { key: "exhale", label: "Long exhale", dur: 6.7, scale: LO, tone: "warm" }] },
       },
+      // Guided meditations — a calm breath keeps the orb moving while short cues (the phase labels)
+      // lead a body scan / gratitude / presence practice. Every cue pair ends on an exhale so the
+      // session can finish cleanly whenever the timer runs out; cues loop for longer durations.
+      meditate: {
+        body: { name: "Body Scan", ratio: "Head to toe", goal: "Ground yourself", meditation: true, phases: [
+          { key: "inhale", label: "Settle into your seat.", dur: 5, scale: HI, tone: "cool" }, { key: "exhale", label: "Let your shoulders drop.", dur: 6, scale: LO, tone: "warm" },
+          { key: "inhale", label: "Notice your face and jaw.", dur: 5, scale: HI, tone: "cool" }, { key: "exhale", label: "Let them soften.", dur: 6, scale: LO, tone: "warm" },
+          { key: "inhale", label: "Feel your chest and arms.", dur: 5, scale: HI, tone: "cool" }, { key: "exhale", label: "Release any holding.", dur: 6, scale: LO, tone: "warm" },
+          { key: "inhale", label: "Notice your belly.", dur: 5, scale: HI, tone: "cool" }, { key: "exhale", label: "Let it rise and fall.", dur: 6, scale: LO, tone: "warm" },
+          { key: "inhale", label: "Feel your legs, heavy.", dur: 5, scale: HI, tone: "cool" }, { key: "exhale", label: "Let them grow still.", dur: 6, scale: LO, tone: "warm" },
+          { key: "inhale", label: "Sense your whole body.", dur: 5, scale: HI, tone: "cool" }, { key: "exhale", label: "At rest, at ease.", dur: 7, scale: LO, tone: "warm" } ] },
+        gratitude: { name: "Gratitude", ratio: "Warm reflection", goal: "Lift your mood", meditation: true, phases: [
+          { key: "inhale", label: "Take an easy breath.", dur: 5, scale: HI, tone: "cool" }, { key: "exhale", label: "Let the day slow down.", dur: 6, scale: LO, tone: "warm" },
+          { key: "inhale", label: "Bring someone to mind.", dur: 5, scale: HI, tone: "cool" }, { key: "exhale", label: "Feel your thanks for them.", dur: 6, scale: LO, tone: "warm" },
+          { key: "inhale", label: "Recall one small kindness.", dur: 5, scale: HI, tone: "cool" }, { key: "exhale", label: "Let it warm you.", dur: 6, scale: LO, tone: "warm" },
+          { key: "inhale", label: "Notice something you have.", dur: 5, scale: HI, tone: "cool" }, { key: "exhale", label: "You'd miss if it were gone.", dur: 6, scale: LO, tone: "warm" },
+          { key: "inhale", label: "Picture a place you love.", dur: 5, scale: HI, tone: "cool" }, { key: "exhale", label: "Rest there a moment.", dur: 6, scale: LO, tone: "warm" },
+          { key: "inhale", label: "Include yourself, too.", dur: 5, scale: HI, tone: "cool" }, { key: "exhale", label: "You showed up today.", dur: 7, scale: LO, tone: "warm" } ] },
+        presence: { name: "Presence", ratio: "Back to now", goal: "Come back to now", meditation: true, phases: [
+          { key: "inhale", label: "Arrive where you are.", dur: 5, scale: HI, tone: "cool" }, { key: "exhale", label: "Nothing to fix right now.", dur: 6, scale: LO, tone: "warm" },
+          { key: "inhale", label: "Notice three sounds.", dur: 5, scale: HI, tone: "cool" }, { key: "exhale", label: "Near, then far away.", dur: 6, scale: LO, tone: "warm" },
+          { key: "inhale", label: "Feel where you meet the seat.", dur: 5, scale: HI, tone: "cool" }, { key: "exhale", label: "Let it hold you.", dur: 6, scale: LO, tone: "warm" },
+          { key: "inhale", label: "Feel the air on your skin.", dur: 5, scale: HI, tone: "cool" }, { key: "exhale", label: "Cool in, warm out.", dur: 6, scale: LO, tone: "warm" },
+          { key: "inhale", label: "Watch one whole breath.", dur: 5, scale: HI, tone: "cool" }, { key: "exhale", label: "Beginning to end.", dur: 6, scale: LO, tone: "warm" },
+          { key: "inhale", label: "This moment is enough.", dur: 5, scale: HI, tone: "cool" }, { key: "exhale", label: "You're here.", dur: 7, scale: LO, tone: "warm" } ] },
+      },
       sleep: {
         drift: { name: "Drift", ratio: "4 · 8", phases: [{ key: "inhale", label: "Breathe in", dur: 4, scale: HI, tone: "cool" }, { key: "exhale", label: "Let go", dur: 8, scale: LO, tone: "warm" }] },
         calm: { name: "Calm", ratio: "4 · 7 · 8", phases: [{ key: "inhale", label: "Breathe in", dur: 4, scale: HI, tone: "cool" }, { key: "hold", label: "Hold", dur: 7, scale: HI, tone: "cool" }, { key: "exhale", label: "Let go", dur: 8, scale: LO, tone: "warm" }] },
@@ -550,13 +576,13 @@ export default function Lull() {
   const pauseSession = () => { pausedRef.current = true; setPaused(true); if (phaseTimeout.current) clearTimeout(phaseTimeout.current); setPhaseLabel("Paused"); setOrb({ scale: prefersReduced ? 0.95 : 0.92, dur: 0.8, ease: "ease" }); softenAmbience(); };
   const resumeSession = () => { pausedRef.current = false; setPaused(false); ensureAudio(); if (soundRef.current && !scapeRef.current) buildAmbience(); runPhase(); };
   const goHome = () => { clearTimers(); pausedRef.current = false; setPaused(false); teardownAmbience(0.9); setScreen("home"); setOrb({ scale: LO, dur: 1, ease: "ease" }); setRemaining(durationMin * 60); setProgress(0); setPatternId((pid) => pid === "sigh" ? DEFAULT_PATTERN[mode] : pid); };
-  function finishSession() { clearTimers(); pausedRef.current = false; setPaused(false); if (modeRef.current === "breathe") bowl("done"); teardownAmbience(modeRef.current === "sleep" ? 3.4 : 1.6); setMoodAfter(null); try { const entry = { t: Date.now(), mode: modeRef.current, pattern: patternIdRef.current, min: Math.max(1, Math.round(targetRef.current / 60)), moodBefore: (typeof moodBeforeRef.current === "number" ? moodBeforeRef.current : null), moodAfter: null }; setSessions((prev) => { const next = [...prev, entry]; saveHist(next); return next; }); } catch (e) {} setScreen("done"); }
+  function finishSession() { clearTimers(); pausedRef.current = false; setPaused(false); if (modeRef.current !== "sleep") bowl("done"); teardownAmbience(modeRef.current === "sleep" ? 3.4 : 1.6); setMoodAfter(null); try { const entry = { t: Date.now(), mode: modeRef.current, pattern: patternIdRef.current, min: Math.max(1, Math.round(targetRef.current / 60)), moodBefore: (typeof moodBeforeRef.current === "number" ? moodBeforeRef.current : null), moodAfter: null }; setSessions((prev) => { const next = [...prev, entry]; saveHist(next); return next; }); } catch (e) {} setScreen("done"); }
   // A gentle, skippable calm check before breathing → sets moodBefore, then starts. Sleep and SOS
   // (sos:true patterns, e.g. Reset) skip it entirely — no friction when someone needs to calm down now.
   const beginWithCheckin = (patOverride, durSecOverride) => {
     const pid = (typeof patOverride === "string" && PATTERNS[mode][patOverride]) ? patOverride : patternId;
     const p = PATTERNS[mode] && PATTERNS[mode][pid];
-    if (mode !== "breathe" || (p && p.sos)) { moodBeforeRef.current = null; startSession(patOverride, durSecOverride); return; }
+    if (mode === "sleep" || (p && p.sos)) { moodBeforeRef.current = null; startSession(patOverride, durSecOverride); return; }
     pendingStartRef.current = { pat: (typeof patOverride === "string" ? patOverride : undefined), dur: (typeof durSecOverride === "number" ? durSecOverride : undefined) };
     moodBeforeRef.current = null; setMoodAfter(null); setPreCheck(true);
   };
@@ -567,6 +593,9 @@ export default function Lull() {
   };
   // Post-session tap patches the just-created entry with moodAfter and reveals the lift.
   const recordMoodAfter = (mood) => { setMoodAfter(mood); setSessions((prev) => { if (!prev.length) return prev; const next = prev.slice(); next[next.length - 1] = { ...next[next.length - 1], moodAfter: mood }; saveHist(next); return next; }); };
+  // Your data, yours: download every session/mood as JSON, or erase it all from this device.
+  const exportData = () => { try { const blob = new Blob([JSON.stringify({ app: "Lull", exported: new Date().toISOString(), sessions }, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "lull-breaths.json"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000); } catch (e) {} };
+  const eraseData = () => { if (typeof window !== "undefined" && !window.confirm("Erase all your breaths and check-ins? This stays on your device and can't be undone.")) return; try { localStorage.removeItem(HIST_KEY); } catch (e) {} setSessions([]); setShowHistory(false); };
   const switchMode = (m) => { if (m === mode) return; clearTimers(); teardownAmbience(0.4); setMode(m); setScreen("home"); setPatternId(DEFAULT_PATTERN[m]); setDurationMin(DEFAULT_DUR[m]); setRemaining(DEFAULT_DUR[m] * 60); setProgress(0); setTone("cool"); setOrb({ scale: LO, dur: 1, ease: "ease" }); };
   const toggleSound = () => {
     ensureAudio(); const next = !soundOn; setSoundOn(next); soundRef.current = next;
@@ -720,7 +749,7 @@ export default function Lull() {
     </div>
   );
 
-  const tagline = active ? `${pats[patternId].name} · ${pats[patternId].ratio}` : night ? "A slow exhale into sleep." : "A minute to breathe.";
+  const tagline = active ? `${pats[patternId].name} · ${pats[patternId].ratio}` : night ? "A slow exhale into sleep." : mode === "meditate" ? "A few quiet minutes." : "A minute to breathe.";
 
   return (
     <div style={root}>
@@ -777,8 +806,8 @@ export default function Lull() {
         {screen !== "done" && (<p style={{ fontSize: 13, opacity: 0.45, margin: "2px 0 0", letterSpacing: 0.3, minHeight: 18 }}>{tagline}</p>)}
 
         {screen === "home" && (
-          <div style={{ ...segWrap, maxWidth: 220, marginTop: 14 }}>
-            {["breathe", "sleep"].map((m) => { const sel = mode === m; return (<button key={m} className="lull-seg lull-btn" aria-pressed={sel} onClick={() => switchMode(m)} style={seg(sel)}><span style={{ fontSize: 14, fontWeight: 500, textTransform: "capitalize" }}>{m}</span></button>); })}
+          <div style={{ ...segWrap, flexWrap: "nowrap", maxWidth: 300, marginTop: 14 }}>
+            {["breathe", "meditate", "sleep"].map((m) => { const sel = mode === m; return (<button key={m} className="lull-seg lull-btn" aria-pressed={sel} onClick={() => switchMode(m)} style={seg(sel)}><span style={{ fontSize: 14, fontWeight: 500, textTransform: "capitalize" }}>{m}</span></button>); })}
           </div>
         )}
 
@@ -889,7 +918,7 @@ export default function Lull() {
                 <div style={{ width: ORB * 0.66, height: ORB * 0.46, borderRadius: "50%", background: "radial-gradient(ellipse at center, rgba(7,4,18,0.5) 0%, rgba(7,4,18,0.3) 42%, rgba(7,4,18,0) 72%)", filter: "blur(7px)", opacity: onWhite ? 0 : 1, transition: "opacity 1s ease" }} />
               </div>
               <div style={{ position: "absolute", textAlign: "center", zIndex: 6, pointerEvents: "none", color: roInk }}>
-                {active ? (<div style={{ fontSize: 30, fontWeight: 300, letterSpacing: 1, textShadow: roShadowActive }}>{phaseLabel}</div>)
+                {active ? (<div style={{ fontSize: mode === "meditate" ? 19 : 30, fontWeight: 300, letterSpacing: mode === "meditate" ? 0.2 : 1, lineHeight: mode === "meditate" ? 1.35 : 1.1, maxWidth: mode === "meditate" ? ORB * 0.84 : "none", textShadow: roShadowActive }}>{phaseLabel}</div>)
                   : sleepDone ? null : (<>
                     <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 6, textIndent: 6, opacity: 0.62, marginBottom: 10, textShadow: roShadow }}>LULL</div>
                     <div style={{ fontSize: 23, fontWeight: 400, letterSpacing: 0.5, textShadow: roShadowBig }}>{pats[patternId].name}</div>
@@ -923,7 +952,7 @@ export default function Lull() {
             <div style={segWrap}>
               {Object.entries(pats).filter(([id]) => id !== "sigh").map(([id, p]) => { const sel = patternId === id; return (<button key={id} className="lull-seg lull-btn" aria-pressed={sel} onClick={() => setPatternId(id)} style={seg(sel)}><span style={{ fontSize: 14, fontWeight: 500 }}>{p.name}</span><span style={{ fontSize: 10.5, opacity: 0.6, letterSpacing: 0.3 }}>{p.goal || p.ratio}</span></button>); })}
             </div>
-            <button className="lull-btn" onClick={openCustom} style={{ alignSelf: "center", padding: "2px 0 0", fontSize: 12.5, letterSpacing: 0.4, color: inkA(0.5) }}>{customPat ? "✎ Edit your pattern" : "✎ Make your own"}</button>
+            {mode !== "meditate" && (<button className="lull-btn" onClick={openCustom} style={{ alignSelf: "center", padding: "2px 0 0", fontSize: 12.5, letterSpacing: 0.4, color: inkA(0.5) }}>{customPat ? "✎ Edit your pattern" : "✎ Make your own"}</button>)}
             <div style={segWrap}>
               {DURATIONS[mode].map((m) => { const sel = durationMin === m; const big = m >= 60 ? m / 60 : m; const unit = m >= 60 ? "hr" : "min"; return (<button key={m} className="lull-seg lull-btn" aria-pressed={sel} onClick={() => { setDurationMin(m); setRemaining(m * 60); }} style={seg(sel)}><span style={{ fontSize: 16, fontWeight: 500 }}>{big}</span><span style={{ fontSize: 11, opacity: 0.6, letterSpacing: 1 }}>{unit}</span></button>); })}
             </div>
@@ -1172,7 +1201,11 @@ export default function Lull() {
                     </span>
                   </div>); })}
               </div>
-              <div style={{ marginTop: "auto", paddingTop: 30, fontSize: 12.5, opacity: 0.4, textAlign: "center", letterSpacing: 0.3 }}>No streaks. No goals. Just the breaths you’ve taken.</div>
+              <div style={{ marginTop: "auto", paddingTop: 30, display: "flex", gap: 10, justifyContent: "center" }}>
+                <button className="lull-btn" onClick={exportData} style={{ padding: "9px 16px", borderRadius: 999, fontSize: 12.5, letterSpacing: 0.3, color: inkA(0.7), background: wa(0.05), border: "1px solid " + wa(0.12) }}>Export my breaths</button>
+                <button className="lull-btn" onClick={eraseData} style={{ padding: "9px 16px", borderRadius: 999, fontSize: 12.5, letterSpacing: 0.3, color: inkA(0.55), background: "transparent", border: "1px solid " + wa(0.12) }}>Erase everything</button>
+              </div>
+              <div style={{ paddingTop: 16, fontSize: 12.5, opacity: 0.4, textAlign: "center", letterSpacing: 0.3 }}>No streaks. No goals. Just the breaths you’ve taken. Private to this device.</div>
             </>);
           })()}
         </div>
