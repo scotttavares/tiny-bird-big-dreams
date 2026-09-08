@@ -94,21 +94,21 @@ const DEFAULT_DUR = { breathe: 3, meditate: 5, sleep: 30 };
 // One-line "what it's for", shown under the picker for the selected pattern.
 const PATTERN_INFO = {
   breathe: {
-    calm: "Inhale 4 · hold 7 · exhale 8 — a long exhale to quiet anxiety and ease toward sleep.",
-    steady: "Box breathing, 4 · 4 · 4 · 4 — even and composed, for focus under pressure.",
-    ease: "Inhale 4 · exhale 6 — a gentle everyday reset you can do anywhere.",
-    coherence: "Inhale 5 · exhale 5 — a balanced ~5–6 breaths a minute to center you.",
+    calm: "Inhale 4 · hold 7 · exhale 8. A long exhale to quiet anxiety and ease toward sleep.",
+    steady: "Box breathing, 4 · 4 · 4 · 4. Even and composed, for focus under pressure.",
+    ease: "Inhale 4 · exhale 6. A gentle everyday reset you can do anywhere.",
+    coherence: "Inhale 5 · exhale 5. About six calm breaths a minute to center you.",
     custom: "Your own rhythm.",
   },
   meditate: {
-    body: "A slow, easy breath while you scan from head to toe — grounding.",
+    body: "A slow, easy breath while you scan from head to toe.",
     gratitude: "Easy breathing while you bring to mind what you're thankful for.",
     presence: "Easy breathing while you anchor to the here and now.",
   },
   sleep: {
-    drift: "Inhale 4 · exhale 8 — a slow, long exhale to help you let go.",
-    calm: "Inhale 4 · hold 7 · exhale 8 — the 4-7-8 wind-down, for sleep.",
-    noise: "Just a steady hush — no breathing to follow. Keeps playing as your screen goes dark.",
+    drift: "Inhale 4 · exhale 8. A slow, long exhale to help you let go.",
+    calm: "Inhale 4 · hold 7 · exhale 8. The classic wind down, for sleep.",
+    noise: "Steady sound, no breathing. Plays on in the dark.",
     custom: "Your own rhythm.",
   },
 };
@@ -219,7 +219,7 @@ const PACKS = {
   aura: { name: "Aura Pack", tag: "Woven translucent light-rings", price: 0.99, orbs: ["halo", "prism", "lagoon", "dusk"] },
 };
 const PACK_ORDER = ["swirls", "cosmos", "aura"];
-const BUNDLE = { name: "Everything", tag: "Every orb and sound — and every future one we add", price: 3.99 };
+const BUNDLE = { name: "Everything", tag: "Every orb and sound, plus every future one we add", price: 3.99 };
 const FREE_ORBS = ORB_ORDER.filter((id) => (ORBS[id].price || 0) === 0); // ship unlocked (Aurora, Bloom)
 const ORB_KEY = "lull.orb.v1";
 const OWNED_KEY = "lull.orbsOwned.v1";
@@ -758,7 +758,7 @@ export default function Lull() {
   const exportData = () => { setCopied(false); setExportOpen(true); };
   const downloadExport = () => { try { const blob = new Blob([exportJson()], { type: "application/json" }); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = "lull-breaths.json"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000); } catch (e) {} };
   const copyExport = async () => { let ok = false; try { await navigator.clipboard.writeText(exportJson()); ok = true; } catch (e) {} if (!ok) { try { const ta = document.getElementById("lull-export-ta"); if (ta) { ta.focus(); ta.select(); ok = document.execCommand("copy"); } } catch (e) {} } setCopied(ok); if (ok) setTimeout(() => setCopied(false), 2200); };
-  const eraseData = () => { if (typeof window !== "undefined" && !window.confirm("Erase all your breaths and check-ins? This stays on your device and can't be undone.")) return; try { localStorage.removeItem(HIST_KEY); } catch (e) {} setSessions([]); setShowHistory(false); };
+  const eraseData = () => { if (typeof window !== "undefined" && !window.confirm("Erase all your breaths and mood ratings? This stays on your device and can't be undone.")) return; try { localStorage.removeItem(HIST_KEY); } catch (e) {} setSessions([]); setShowHistory(false); };
   const switchMode = (m) => { if (m === mode) return; clearTimers(); teardownAmbience(0.4); setMode(m); setScreen("home"); setPatternId(DEFAULT_PATTERN[m]); setDurationMin(DEFAULT_DUR[m]); setRemaining(DEFAULT_DUR[m] * 60); setProgress(0); setTone("cool"); setOrb({ scale: LO, dur: 1, ease: "ease" }); };
   const toggleSound = () => {
     ensureAudio(); const next = !soundOn; setSoundOn(next); soundRef.current = next;
@@ -1215,7 +1215,7 @@ export default function Lull() {
             <span style={{ fontSize: 12, letterSpacing: 5, textTransform: "uppercase", fontWeight: 500, opacity: 0.6 }}>Store</span>
             <button className="lull-btn" aria-label="Done" onClick={() => setOrbStoreOpen(false)} style={{ padding: "6px 4px", opacity: 0.75, fontSize: 15 }}>Done</button>
           </div>
-          <p style={{ fontSize: 14, lineHeight: 1.5, opacity: 0.6, margin: "0 0 24px", maxWidth: "42ch" }}>Tap to choose your orb and sound. Unlock packs to add more — yours forever, no subscription.</p>
+          <p style={{ fontSize: 14, lineHeight: 1.5, opacity: 0.6, margin: "0 0 24px", maxWidth: "42ch" }}>Tap to choose your orb and sound. Unlock packs to add more. Yours forever, no subscription.</p>
 
           {/* Your orbs — free + everything you own, tap to breathe with it */}
           <div style={{ fontSize: 11, letterSpacing: 3, textTransform: "uppercase", fontWeight: 600, opacity: 0.5, marginBottom: 13 }}>Your orbs</div>
@@ -1263,9 +1263,9 @@ export default function Lull() {
                       <div key={id} style={{ marginLeft: i ? -14 : 0, borderRadius: "50%", boxShadow: "0 0 0 2.5px rgba(8,5,16,0.92)" }}>{orbChip(id, 46)}</div>
                     ))}
                   </div>
-                  <div style={{ fontSize: 13, lineHeight: 1.5, opacity: 0.72, marginBottom: 15 }}>{BUNDLE.tag} — unlocked forever.</div>
+                  <div style={{ fontSize: 13, lineHeight: 1.5, opacity: 0.72, marginBottom: 15 }}>{BUNDLE.tag}. Unlocked forever.</div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                    <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: 0.2 }}>{fmtPrice(BUNDLE.price)}<span style={{ fontSize: 12, fontWeight: 500, opacity: 0.55 }}> · one-time</span></span>
+                    <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: 0.2 }}>{fmtPrice(BUNDLE.price)}<span style={{ fontSize: 12, fontWeight: 500, opacity: 0.55 }}> · one time</span></span>
                     <button className="lull-btn" onClick={unlockBundle} style={{ padding: "11px 22px", borderRadius: 999, fontSize: 14, fontWeight: 700, letterSpacing: 0.3, whiteSpace: "nowrap", color: "#fff", background: "linear-gradient(180deg, #9a86ff 0%, #6f5cff 100%)", boxShadow: "0 10px 22px -10px rgba(111,92,255,0.9)" }}>Unlock all</button>
                   </div>
                 </div>
@@ -1311,7 +1311,7 @@ export default function Lull() {
             </>
           )}
           <button className="lull-btn" onClick={restoreOrbs} style={{ alignSelf: "center", marginTop: 22, padding: "8px 0", fontSize: 12.5, letterSpacing: 0.4, color: inkA(0.5) }}>Restore purchases</button>
-          <p style={{ fontSize: 11.5, lineHeight: 1.5, opacity: 0.42, textAlign: "center", margin: "6px auto 0", maxWidth: "40ch" }}>One-time purchases, no subscription. Card payments arrive shortly — for now, unlocking is free while we finish setup.</p>
+          <p style={{ fontSize: 11.5, lineHeight: 1.5, opacity: 0.42, textAlign: "center", margin: "6px auto 0", maxWidth: "40ch" }}>One time purchases, no subscription. Card payments arrive shortly. For now, unlocking is free while we finish setup.</p>
         </div>
       )}
       {showCustom && (
@@ -1361,7 +1361,7 @@ export default function Lull() {
             return (<>
               <div style={{ textAlign: "center", marginBottom: 6 }}>
                 <div style={{ fontSize: 42, fontWeight: 200, letterSpacing: 1, fontVariantNumeric: "tabular-nums" }}>{sleepDraft.h}h {sleepDraft.m}m</div>
-                <div style={{ fontSize: 13, opacity: 0.5, marginTop: 6 }}>Sound plays until the time is up — set it and drift off.</div>
+                <div style={{ fontSize: 13, opacity: 0.5, marginTop: 6 }}>Sound plays until the time is up. Set it and drift off.</div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 22, maxWidth: 340, width: "100%", alignSelf: "center" }}>
                 {rows.map(([k, label, lo, hi, step]) => (
@@ -1386,7 +1386,7 @@ export default function Lull() {
         <div style={{ position: "fixed", inset: 0, zIndex: 65, backgroundColor: groundSolid, backgroundImage: groundBg, color: ink, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", gap: 18, padding: "max(30px, calc(env(safe-area-inset-top) + 12px)) 30px calc(34px + env(safe-area-inset-bottom))" }}>
           <div style={{ fontSize: 11, letterSpacing: 3, textTransform: "uppercase", fontWeight: 600, opacity: 0.5 }}>Before you begin</div>
           <div style={{ fontSize: 25, fontWeight: 300, letterSpacing: 0.4 }}>How do you feel?</div>
-          <p style={{ fontSize: 13.5, opacity: 0.5, margin: "-6px 0 4px", maxWidth: "30ch", lineHeight: 1.5 }}>One tap — we’ll check in again after. Just for you, stays on this device.</p>
+          <p style={{ fontSize: 13.5, opacity: 0.5, margin: "-6px 0 4px", maxWidth: "30ch", lineHeight: 1.5 }}>One tap, and we’ll check in again after. Just for you, stays on this device.</p>
           {moodScale(null, startAfterCheckin)}
           <button className="lull-btn" onClick={() => startAfterCheckin(null)} style={{ ...textBtn, marginTop: 8 }}>Skip</button>
         </div>
@@ -1407,17 +1407,17 @@ export default function Lull() {
             return (<>
               <div style={{ marginTop: 4 }}>
                 <div style={{ fontSize: 58, fontWeight: 200, letterSpacing: -1, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>{week}<span style={{ fontSize: 20, fontWeight: 300, opacity: 0.55, marginLeft: 8 }}>min</span></div>
-                <div style={{ fontSize: 14, opacity: 0.55, marginTop: 8, maxWidth: 300 }}>{week > 0 ? "to breathe, this week" : "A quiet week — your breaths are here when you need them."}</div>
+                <div style={{ fontSize: 14, opacity: 0.55, marginTop: 8, maxWidth: 300 }}>{week > 0 ? "to breathe, this week" : "A quiet week. Your breaths are here when you need them."}</div>
               </div>
               <div style={{ fontSize: 13, opacity: 0.42, marginTop: 18, letterSpacing: 0.2 }}>{all} minutes · {sessions.length} {sessions.length === 1 ? "breath" : "breaths"}, all-time</div>
               {lift && (
                 <div style={{ marginTop: 22, padding: "16px 18px", borderRadius: 16, background: wa(0.05), border: "1px solid " + wa(0.1) }}>
                   {lift.avg > 0.05 ? (<>
                     <div style={{ fontSize: 27, fontWeight: 300, letterSpacing: -0.2, fontVariantNumeric: "tabular-nums", color: liftGreen }}>+{lift.avg.toFixed(1)}<span style={{ fontSize: 13, fontWeight: 400, opacity: 0.75, marginLeft: 9, letterSpacing: 0.3, color: ink }}>calmer, on average</span></div>
-                    <div style={{ fontSize: 12.5, opacity: 0.5, marginTop: 6, lineHeight: 1.5 }}>Across {lift.n} {lift.n === 1 ? "check-in" : "check-ins"}, on a 1–5 scale — how much a session tends to settle you.</div>
+                    <div style={{ fontSize: 12.5, opacity: 0.5, marginTop: 6, lineHeight: 1.5 }}>Across {lift.n} mood {lift.n === 1 ? "rating" : "ratings"}, on a 1 to 5 scale. How much a session tends to settle you.</div>
                   </>) : (<>
                     <div style={{ fontSize: 18, fontWeight: 300, letterSpacing: 0.2 }}>You show up for yourself.</div>
-                    <div style={{ fontSize: 12.5, opacity: 0.5, marginTop: 6, lineHeight: 1.5 }}>{lift.n} {lift.n === 1 ? "check-in" : "check-ins"} recorded. However you feel is okay.</div>
+                    <div style={{ fontSize: 12.5, opacity: 0.5, marginTop: 6, lineHeight: 1.5 }}>{lift.n} mood {lift.n === 1 ? "rating" : "ratings"} recorded. However you feel is okay.</div>
                   </>)}
                 </div>
               )}
@@ -1447,12 +1447,12 @@ export default function Lull() {
             <span style={{ fontSize: 12, letterSpacing: 5, textTransform: "uppercase", fontWeight: 500, opacity: 0.6 }}>Ambient sounds</span>
             <button className="lull-btn" aria-label="Close" onClick={() => setMixerOpen(false)} style={{ padding: "6px 4px", opacity: 0.75, fontSize: 15 }}>Done</button>
           </div>
-          <p style={{ fontSize: 13, lineHeight: 1.5, opacity: 0.55, margin: "0 0 24px", maxWidth: "42ch" }}>Blend nature sounds into your own mix and let it play — no timer, no session. Slide a sound up to hear it.</p>
+          <p style={{ fontSize: 13, lineHeight: 1.5, opacity: 0.55, margin: "0 0 24px", maxWidth: "42ch" }}>Blend nature sounds into your own mix and let it play. No timer, no session. Slide a sound up to hear it.</p>
           {(() => {
             const owned = NATURE_IDS.filter((id) => soundOwned(id));
             if (!owned.length) return (
               <div style={{ marginTop: 10, textAlign: "center" }}>
-                <p style={{ fontSize: 14, opacity: 0.6, lineHeight: 1.6, margin: "0 auto 18px", maxWidth: "34ch" }}>The Nature pack — rain, ocean, forest &amp; fire — unlocks the mixer.</p>
+                <p style={{ fontSize: 14, opacity: 0.6, lineHeight: 1.6, margin: "0 auto 18px", maxWidth: "34ch" }}>The Nature pack (rain, ocean, forest &amp; fire) unlocks the mixer.</p>
                 <button className="lull-btn" onClick={() => { setMixerOpen(false); setOrbStoreOpen(true); }} style={{ padding: "11px 22px", borderRadius: 999, fontSize: 14, fontWeight: 600, letterSpacing: 0.3, color: "#fff", background: "linear-gradient(180deg, #9a86ff 0%, #6f5cff 100%)", boxShadow: "0 10px 22px -12px rgba(111,92,255,0.9)" }}>Get the Nature pack</button>
               </div>
             );
@@ -1508,13 +1508,13 @@ export default function Lull() {
             <span style={{ fontSize: 12, letterSpacing: 5, textTransform: "uppercase", fontWeight: 500, opacity: 0.6 }}>Your breaths</span>
             <button className="lull-btn" aria-label="Close" onClick={() => setExportOpen(false)} style={{ padding: "6px 4px", opacity: 0.75, fontSize: 15 }}>Done</button>
           </div>
-          <p style={{ fontSize: 13, lineHeight: 1.5, opacity: 0.55, margin: "0 0 16px", maxWidth: "44ch" }}>Everything Lull has saved — {sessions.length} {sessions.length === 1 ? "session" : "sessions"}. Copy it or download it as a file. It never leaves your device.</p>
+          <p style={{ fontSize: 13, lineHeight: 1.5, opacity: 0.55, margin: "0 0 16px", maxWidth: "44ch" }}>Everything Lull has saved: {sessions.length} {sessions.length === 1 ? "session" : "sessions"}. Copy it or download it as a file. It never leaves your device.</p>
           <textarea id="lull-export-ta" readOnly value={exportJson()} onFocus={(e) => e.target.select()} spellCheck={false} style={{ flex: 1, minHeight: 0, width: "100%", resize: "none", boxSizing: "border-box", padding: 14, borderRadius: 16, background: wa(0.05), border: "1px solid " + wa(0.14), color: inkA(0.85), fontSize: 12, lineHeight: 1.5, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", WebkitOverflowScrolling: "touch" }} />
           <div style={{ marginTop: 16, display: "flex", gap: 10, justifyContent: "center" }}>
             <button className="lull-btn" onClick={copyExport} style={{ padding: "11px 22px", borderRadius: 999, fontSize: 14, fontWeight: 600, letterSpacing: 0.3, color: "#fff", background: "linear-gradient(180deg, #9a86ff 0%, #6f5cff 100%)", boxShadow: "0 10px 22px -12px rgba(111,92,255,0.9)" }}>{copied ? "Copied ✓" : "Copy"}</button>
             <button className="lull-btn" onClick={downloadExport} style={{ padding: "11px 20px", borderRadius: 999, fontSize: 14, fontWeight: 500, letterSpacing: 0.3, color: ink, background: wa(0.06), border: "1px solid " + wa(0.16) }}>Download file</button>
           </div>
-          <p style={{ paddingTop: 14, fontSize: 11.5, opacity: 0.4, textAlign: "center", letterSpacing: 0.3, lineHeight: 1.5 }}>On phones, Copy is the reliable one — paste into Notes, email or a doc to keep it.</p>
+          <p style={{ paddingTop: 14, fontSize: 11.5, opacity: 0.4, textAlign: "center", letterSpacing: 0.3, lineHeight: 1.5 }}>On phones, Copy is the reliable one. Paste into Notes, email or a doc to keep it.</p>
         </div>
       )}
 
