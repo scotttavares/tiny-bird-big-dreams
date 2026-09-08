@@ -947,6 +947,11 @@ export default function Lull() {
                 <span style={{ fontSize: 13, fontWeight: 500, letterSpacing: 0.3 }}>{selectedOrb.name}</span>
                 <span style={{ fontSize: 12, opacity: 0.5, letterSpacing: 0.5 }}>Orbs ›</span>
               </button>
+              <button className="lull-btn" aria-label="Choose your sound" onClick={() => setOrbStoreOpen(true)} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 13px 6px 6px", borderRadius: 999, background: wa(0.06), border: "1px solid " + wa(0.16), color: ink }}>
+                {soundChip(scapeId, 26)}
+                <span style={{ fontSize: 13, fontWeight: 500, letterSpacing: 0.3 }}>{(SOUND_BY_ID[scapeId] || SOUND[0]).name}</span>
+                <span style={{ fontSize: 12, opacity: 0.5, letterSpacing: 0.5 }}>Sounds ›</span>
+              </button>
               {mode === "breathe" && (
                 <button className="lull-btn" onClick={() => beginWithCheckin("sigh", 90)} aria-label="Reset — a 90-second physiological-sigh session to calm quickly" style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 15px 8px 13px", borderRadius: 999, background: "linear-gradient(180deg, " + wa(0.11) + ", " + wa(0.04) + ")", border: "1px solid " + wa(0.2), color: ink }}>
                   <span aria-hidden style={{ fontSize: 14, opacity: 0.85 }}>✦</span>
@@ -984,26 +989,6 @@ export default function Lull() {
                 </div>
               );
             })()}
-            {(() => {
-              const tile = (o) => { const sel = scapeId === o.id; return (
-                <button key={o.id} className="lull-btn" aria-pressed={sel} onClick={() => setScapeId(o.id)} title={o.name} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, width: 62, padding: "8px 4px 7px", borderRadius: 15, background: sel ? wa(0.12) : wa(0.04), border: "1px solid " + (sel ? wa(0.3) : wa(0.1)), color: sel ? ink : inkA(0.6), transition: "background .2s ease, border-color .2s ease, color .2s ease" }}>
-                  {soundChip(o.id, 30)}
-                  <span style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.2, whiteSpace: "nowrap" }}>{o.name}</span>
-                </button>); };
-              const moreTile = (<button key="more-sounds" className="lull-btn" onClick={() => setOrbStoreOpen(true)} title="More sounds" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 5, width: 62, padding: "8px 4px 7px", borderRadius: 15, background: wa(0.04), border: "1px dashed " + wa(0.2), color: inkA(0.6) }}>
-                  <div style={{ width: 30, height: 30, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, border: "1px dashed " + wa(0.28) }}>＋</div>
-                  <span style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.2 }}>More</span>
-                </button>);
-              const instruments = SOUND.filter((o) => o.free && soundOwned(o.id));   // Bowls, Handpan, Binaural
-              const nature = SOUND.filter((o) => !o.free && soundOwned(o.id));        // Rain, Ocean, Forest, Fire — kept together on their own line
-              return (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "center", paddingTop: 2, width: "100%" }}>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>{instruments.map(tile)}</div>
-                  {(nature.length > 0 || !allSoundsOwned) && (<div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>{nature.map(tile)}{!allSoundsOwned && moreTile}</div>)}
-                </div>
-              );
-            })()}
-            {scapeId === "binaural" && (<p style={{ fontSize: 12, opacity: 0.55, textAlign: "center", margin: "2px 0 0", letterSpacing: 0.3 }}>Best with headphones</p>)}
             <button className="lull-btn lull-cta" onClick={beginWithCheckin} style={{ ...glassBtn, marginTop: 4 }}>Begin</button>
             {sessions.length > 0 && (<button className="lull-btn" onClick={() => setShowHistory(true)} style={{ marginTop: 2, padding: "7px 0", fontSize: 12.5, letterSpacing: 0.4, color: inkA(0.5), alignSelf: "center" }}>{(() => { const w = minutesSince(sessions, Date.now() - 7 * DAY_MS); return w > 0 ? `You’ve breathed ${w} min this week` : "Your breaths"; })()}</button>)}
           </div>
@@ -1078,6 +1063,7 @@ export default function Lull() {
               );
             })}
           </div>
+          {soundOwned("binaural") && (<p style={{ fontSize: 12, opacity: 0.5, margin: "-14px 0 26px", letterSpacing: 0.2 }}>Binaural is best with headphones.</p>)}
 
           {/* Offers — bundle hero + packs, each hidden once fully owned */}
           {!allOwned && (
