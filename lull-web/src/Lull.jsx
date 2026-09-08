@@ -148,6 +148,10 @@ function moodLift(list) { let sum = 0, n = 0; for (const s of list) { if (s && t
 const CUSTOM_KEY = "lull.custom.v1";
 function loadCustom() { try { const r = JSON.parse(localStorage.getItem(CUSTOM_KEY) || "null"); return r && typeof r === "object" ? r : null; } catch (e) { return null; } }
 function saveCustom(c) { try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(c)); } catch (e) {} }
+const SLEEPDUR_KEY = "lull.sleepDur.v1";   // a custom sleep length (minutes) — e.g. run all night
+function loadSleepDur() { try { const r = JSON.parse(localStorage.getItem(SLEEPDUR_KEY) || "null"); return (typeof r === "number" && r > 0) ? r : null; } catch (e) { return null; } }
+function saveSleepDur(m) { try { localStorage.setItem(SLEEPDUR_KEY, JSON.stringify(m)); } catch (e) {} }
+function fmtDur(m) { if (m >= 60) { const h = m / 60; return { big: (Number.isInteger(h) ? String(h) : h.toFixed(1)), unit: "hr" }; } return { big: String(m), unit: "min" }; }
 // ---------- orbs ----------
 // The orb you breathe with is a cosmetic choice. "aurora" (the Siri-style glass orb) ships free;
 // others can be unlocked. Purchases are scaffolded locally here — real charging (Apple In-App
@@ -375,6 +379,9 @@ export default function Lull() {
   const [customPat, setCustomPat] = useState(() => (typeof window !== "undefined" ? loadCustom() : null));
   const [showCustom, setShowCustom] = useState(false);
   const [draft, setDraft] = useState({ inhale: 4, hold: 7, exhale: 8, hold2: 0 });
+  const [sleepCustomMin, setSleepCustomMin] = useState(() => (typeof window !== "undefined" ? loadSleepDur() : null));
+  const [showSleepTime, setShowSleepTime] = useState(false);
+  const [sleepDraft, setSleepDraft] = useState({ h: 8, m: 0 });
 
   const PATTERNS = useMemo(() => {
     const P = {
@@ -604,6 +611,9 @@ export default function Lull() {
   };
   const fmt = (s) => { s = Math.max(0, Math.ceil(s)); const m = Math.floor(s / 60); return `${m}:${String(s % 60).padStart(2, "0")}`; };
   const openCustom = () => { setDraft(customPat || { inhale: 4, hold: 7, exhale: 8, hold2: 0 }); setShowCustom(true); };
+  const openSleepTime = () => { const cur = sleepCustomMin || 480; setSleepDraft({ h: Math.min(12, Math.floor(cur / 60)), m: cur % 60 }); setShowSleepTime(true); };
+  const saveSleepTime = () => { const mins = Math.max(5, sleepDraft.h * 60 + sleepDraft.m); saveSleepDur(mins); setSleepCustomMin(mins); setDurationMin(mins); setRemaining(mins * 60); setShowSleepTime(false); };
+  const bumpSleep = (k, d, lo, hi) => setSleepDraft((p) => ({ ...p, [k]: Math.min(hi, Math.max(lo, (p[k] || 0) + d)) }));
   const saveCustomPat = () => { const c = { inhale: draft.inhale, hold: draft.hold, exhale: draft.exhale, hold2: draft.hold2 }; saveCustom(c); setCustomPat(c); setPatternId("custom"); setShowCustom(false); };
   const bump = (k, d, lo, hi) => setDraft((p) => ({ ...p, [k]: Math.min(hi, Math.max(lo, (p[k] || 0) + d)) }));
 
@@ -931,31 +941,49 @@ export default function Lull() {
 
         {screen === "home" && (
           <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 12 }}>
-            <button className="lull-btn" aria-label="Choose your orb" onClick={() => setOrbStoreOpen(true)} style={{ alignSelf: "center", display: "flex", alignItems: "center", gap: 9, padding: "6px 13px 6px 6px", borderRadius: 999, background: wa(0.06), border: "1px solid " + wa(0.16), color: ink }}>
-              {orbChip(orbId, 26)}
-              <span style={{ fontSize: 13, fontWeight: 500, letterSpacing: 0.3 }}>{selectedOrb.name}</span>
-              <span style={{ fontSize: 12, opacity: 0.5, letterSpacing: 0.5 }}>Orbs ›</span>
-            </button>
+            <div style={{ display: "flex", gap: 8, justifyContent: "center", alignItems: "center", flexWrap: "wrap" }}>
+              <button className="lull-btn" aria-label="Choose your orb" onClick={() => setOrbStoreOpen(true)} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 13px 6px 6px", borderRadius: 999, background: wa(0.06), border: "1px solid " + wa(0.16), color: ink }}>
+                {orbChip(orbId, 26)}
+                <span style={{ fontSize: 13, fontWeight: 500, letterSpacing: 0.3 }}>{selectedOrb.name}</span>
+                <span style={{ fontSize: 12, opacity: 0.5, letterSpacing: 0.5 }}>Orbs ›</span>
+              </button>
+              {mode === "breathe" && (
+                <button className="lull-btn" onClick={() => beginWithCheckin("sigh", 90)} aria-label="Reset — a 90-second physiological-sigh session to calm quickly" style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 15px 8px 13px", borderRadius: 999, background: "linear-gradient(180deg, " + wa(0.11) + ", " + wa(0.04) + ")", border: "1px solid " + wa(0.2), color: ink }}>
+                  <span aria-hidden style={{ fontSize: 14, opacity: 0.85 }}>✦</span>
+                  <span style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: 0.3 }}>Reset</span>
+                  <span style={{ fontSize: 11.5, opacity: 0.58, letterSpacing: 0.2 }}>· 90s</span>
+                </button>
+              )}
+            </div>
             {selectedOrb.kind === "coded" && (
             <div style={{ display: "flex", gap: 12, justifyContent: "center", padding: "2px 0 4px" }}>
               {Object.entries(THEMES).map(([id, t]) => { const sel = themeId === id; return (
                 <button key={id} className="lull-dot lull-btn" aria-label={`Orb colour: ${t.name}`} aria-pressed={sel} title={t.name} onClick={() => setThemeId(id)} style={{ width: 30, height: 30, borderRadius: "50%", padding: 0, backgroundImage: t.swatch, border: "1px solid " + wa(0.3), boxShadow: sel ? (lightUI ? "0 0 0 2px rgba(70,50,140,0.8), 0 3px 12px rgba(80,60,140,0.25)" : "0 0 0 2px rgba(255,255,255,0.9), 0 3px 12px rgba(0,0,0,0.45)") : (lightUI ? "0 2px 8px rgba(80,60,140,0.2)" : "0 2px 8px rgba(0,0,0,0.35)"), transform: sel ? "scale(1.14)" : "scale(1)", transition: "transform .2s ease, box-shadow .2s ease" }} />); })}
             </div>
             )}
-            {mode === "breathe" && (
-              <button className="lull-btn" onClick={() => beginWithCheckin("sigh", 90)} aria-label="Reset — a 90-second physiological-sigh session to calm quickly" style={{ alignSelf: "center", display: "flex", alignItems: "center", gap: 9, padding: "9px 17px 9px 15px", borderRadius: 999, background: "linear-gradient(180deg, " + wa(0.11) + ", " + wa(0.04) + ")", border: "1px solid " + wa(0.2), color: ink, marginBottom: 2 }}>
-                <span aria-hidden style={{ fontSize: 14, opacity: 0.85 }}>✦</span>
-                <span style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: 0.3 }}>Reset</span>
-                <span style={{ fontSize: 11.5, opacity: 0.58, letterSpacing: 0.2 }}>· 90-sec calm</span>
-              </button>
-            )}
-            <div style={segWrap}>
-              {Object.entries(pats).filter(([id]) => id !== "sigh").map(([id, p]) => { const sel = patternId === id; return (<button key={id} className="lull-seg lull-btn" aria-pressed={sel} onClick={() => setPatternId(id)} style={seg(sel)}><span style={{ fontSize: 14, fontWeight: 500 }}>{p.name}</span><span style={{ fontSize: 10.5, opacity: 0.6, letterSpacing: 0.3 }}>{p.goal || p.ratio}</span></button>); })}
-            </div>
+            {(() => { const entries = Object.entries(pats).filter(([id]) => id !== "sigh"); const cols = Math.min(entries.length, 4); return (
+              <div style={{ ...segWrap, display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
+                {entries.map(([id, p]) => { const sel = patternId === id; return (<button key={id} className="lull-seg lull-btn" aria-pressed={sel} onClick={() => setPatternId(id)} style={seg(sel)}><span style={{ fontSize: 14, fontWeight: 500 }}>{p.name}</span><span style={{ fontSize: 10.5, opacity: 0.6, letterSpacing: 0.3, textAlign: "center" }}>{p.goal || p.ratio}</span></button>); })}
+              </div>
+            ); })()}
             {mode !== "meditate" && (<button className="lull-btn" onClick={openCustom} style={{ alignSelf: "center", padding: "2px 0 0", fontSize: 12.5, letterSpacing: 0.4, color: inkA(0.5) }}>{customPat ? "✎ Edit your pattern" : "✎ Make your own"}</button>)}
-            <div style={segWrap}>
-              {DURATIONS[mode].map((m) => { const sel = durationMin === m; const big = m >= 60 ? m / 60 : m; const unit = m >= 60 ? "hr" : "min"; return (<button key={m} className="lull-seg lull-btn" aria-pressed={sel} onClick={() => { setDurationMin(m); setRemaining(m * 60); }} style={seg(sel)}><span style={{ fontSize: 16, fontWeight: 500 }}>{big}</span><span style={{ fontSize: 11, opacity: 0.6, letterSpacing: 1 }}>{unit}</span></button>); })}
-            </div>
+            {(() => {
+              const durs = DURATIONS[mode]; const isSleep = mode === "sleep";
+              const cols = durs.length + (isSleep ? 1 : 0);
+              return (
+                <div style={{ ...segWrap, display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
+                  {durs.map((m) => { const sel = durationMin === m; const { big, unit } = fmtDur(m); return (<button key={m} className="lull-seg lull-btn" aria-pressed={sel} onClick={() => { setDurationMin(m); setRemaining(m * 60); }} style={seg(sel)}><span style={{ fontSize: 16, fontWeight: 500 }}>{big}</span><span style={{ fontSize: 11, opacity: 0.6, letterSpacing: 1 }}>{unit}</span></button>); })}
+                  {isSleep && (() => {
+                    const has = sleepCustomMin != null; const sel = has && durationMin === sleepCustomMin && !durs.includes(sleepCustomMin);
+                    const lbl = has ? fmtDur(sleepCustomMin) : null;
+                    return (<button key="sleep-custom" className="lull-seg lull-btn" aria-label={has ? `Custom sleep time ${lbl.big} ${lbl.unit}` : "Set a custom sleep time"} aria-pressed={sel} onClick={() => { if (has && !sel) { setDurationMin(sleepCustomMin); setRemaining(sleepCustomMin * 60); } else { openSleepTime(); } }} style={seg(sel)}>
+                      {has ? (<><span style={{ fontSize: 16, fontWeight: 500 }}>{lbl.big}</span><span style={{ fontSize: 11, opacity: 0.6, letterSpacing: 1 }}>{lbl.unit}</span></>)
+                           : (<><span style={{ fontSize: 17, fontWeight: 300, lineHeight: 1.1 }}>＋</span><span style={{ fontSize: 10.5, opacity: 0.6, letterSpacing: 0.5 }}>hrs</span></>)}
+                    </button>);
+                  })()}
+                </div>
+              );
+            })()}
             {(() => {
               const tile = (o) => { const sel = scapeId === o.id; return (
                 <button key={o.id} className="lull-btn" aria-pressed={sel} onClick={() => setScapeId(o.id)} title={o.name} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, width: 62, padding: "8px 4px 7px", borderRadius: 15, background: sel ? wa(0.12) : wa(0.04), border: "1px solid " + (sel ? wa(0.3) : wa(0.1)), color: sel ? ink : inkA(0.6), transition: "background .2s ease, border-color .2s ease, color .2s ease" }}>
@@ -1147,6 +1175,39 @@ export default function Lull() {
               </div>
               <button className="lull-btn lull-cta" onClick={saveCustomPat} style={{ ...glassBtn, maxWidth: 340, alignSelf: "center", marginTop: 28 }}>Save pattern</button>
               <div style={{ marginTop: "auto", paddingTop: 24, fontSize: 12.5, opacity: 0.4, textAlign: "center", letterSpacing: 0.3 }}>Set a hold to 0 to skip it. Your pattern stays on this device.</div>
+            </>);
+          })()}
+        </div>
+      )}
+
+      {showSleepTime && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 60, backgroundColor: groundSolid, backgroundImage: groundBg, color: ink, display: "flex", flexDirection: "column", padding: "max(30px, calc(env(safe-area-inset-top) + 12px)) 26px calc(34px + env(safe-area-inset-bottom))", overflowY: "auto" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22 }}>
+            <span style={{ fontSize: 12, letterSpacing: 5, textTransform: "uppercase", fontWeight: 500, opacity: 0.6 }}>Sleep timer</span>
+            <button className="lull-btn" aria-label="Cancel" onClick={() => setShowSleepTime(false)} style={{ padding: "6px 4px", opacity: 0.75, fontSize: 15 }}>Cancel</button>
+          </div>
+          {(() => {
+            const stepBtn = { width: 44, height: 44, borderRadius: 14, border: "1px solid " + wa(0.16), background: wa(0.06), color: ink, fontSize: 22, fontWeight: 300, display: "flex", alignItems: "center", justifyContent: "center" };
+            const rows = [["h", "Hours", 0, 12, 1], ["m", "Minutes", 0, 45, 15]];
+            return (<>
+              <div style={{ textAlign: "center", marginBottom: 6 }}>
+                <div style={{ fontSize: 42, fontWeight: 200, letterSpacing: 1, fontVariantNumeric: "tabular-nums" }}>{sleepDraft.h}h {sleepDraft.m}m</div>
+                <div style={{ fontSize: 13, opacity: 0.5, marginTop: 6 }}>Sound plays until the time is up — set it and drift off.</div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 22, maxWidth: 340, width: "100%", alignSelf: "center" }}>
+                {rows.map(([k, label, lo, hi, step]) => (
+                  <div key={k} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                    <span style={{ fontSize: 15 }}>{label}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      <button className="lull-btn" aria-label={`decrease ${label}`} onClick={() => bumpSleep(k, -step, lo, hi)} style={stepBtn}>−</button>
+                      <span style={{ minWidth: 44, textAlign: "center", fontSize: 20, fontWeight: 400, fontVariantNumeric: "tabular-nums" }}>{sleepDraft[k]}</span>
+                      <button className="lull-btn" aria-label={`increase ${label}`} onClick={() => bumpSleep(k, step, lo, hi)} style={stepBtn}>+</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button className="lull-btn lull-cta" onClick={saveSleepTime} style={{ ...glassBtn, maxWidth: 340, alignSelf: "center", marginTop: 28 }}>Set timer</button>
+              <div style={{ marginTop: "auto", paddingTop: 24, fontSize: 12.5, opacity: 0.4, textAlign: "center", letterSpacing: 0.3, maxWidth: "42ch", alignSelf: "center" }}>Keep Lull open with the screen on for the full timer. Background play with the phone locked comes with the iOS app.</div>
             </>);
           })()}
         </div>
