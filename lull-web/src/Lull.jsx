@@ -142,6 +142,9 @@ const DAY_MS = 86400000;
 function loadHist() { try { const r = JSON.parse(localStorage.getItem(HIST_KEY) || "[]"); return Array.isArray(r) ? r : []; } catch (e) { return []; } }
 function saveHist(list) { try { localStorage.setItem(HIST_KEY, JSON.stringify(list.slice(-300))); } catch (e) {} }
 function minutesSince(list, sinceMs) { return list.reduce((a, s) => a + (s && s.min && (!sinceMs || s.t >= sinceMs) ? s.min : 0), 0); }
+// Optional, private mood check-in: a 1–5 calm scale before and after a session. Never required, never shared.
+const MOOD_LABELS = { 1: "Tense", 2: "Uneasy", 3: "Okay", 4: "Settled", 5: "Calm" };
+function moodLift(list) { let sum = 0, n = 0; for (const s of list) { if (s && typeof s.moodBefore === "number" && typeof s.moodAfter === "number") { sum += s.moodAfter - s.moodBefore; n++; } } return n ? { avg: sum / n, n } : null; }
 const CUSTOM_KEY = "lull.custom.v1";
 function loadCustom() { try { const r = JSON.parse(localStorage.getItem(CUSTOM_KEY) || "null"); return r && typeof r === "object" ? r : null; } catch (e) { return null; } }
 function saveCustom(c) { try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(c)); } catch (e) {} }
@@ -409,6 +412,8 @@ export default function Lull() {
   const [light, setLight] = useState(false);
   const [sessions, setSessions] = useState(() => (typeof window !== "undefined" ? loadHist() : []));
   const [showHistory, setShowHistory] = useState(false);
+  const [preCheck, setPreCheck] = useState(false);      // pre-session mood check-in overlay
+  const [moodAfter, setMoodAfter] = useState(null);     // done-screen mood → reveals the calm lift
 
   const [phaseLabel, setPhaseLabel] = useState("Breathe in");
   const [tone, setTone] = useState("cool");
@@ -423,6 +428,7 @@ export default function Lull() {
   const soundRef = useRef(soundOn); const modeRef = useRef(mode); const patternIdRef = useRef(patternId);
   const audioRef = useRef(null); const nodesRef = useRef(null); const scapeRef = useRef(null); const brownRef = useRef(null); const whiteRef = useRef(null); const scapeIdRef = useRef("bowls");
   const particleRef = useRef(null);
+  const moodBeforeRef = useRef(null); const pendingStartRef = useRef(null); // carry the pre-session mood + intent through the check-in
   // Drive the particle-sphere canvas while a particle orb is selected; clean up on change/unmount.
   useEffect(() => {
     const orb = ORBS[orbId] || ORBS.aurora;
@@ -544,7 +550,20 @@ export default function Lull() {
   const pauseSession = () => { pausedRef.current = true; setPaused(true); if (phaseTimeout.current) clearTimeout(phaseTimeout.current); setPhaseLabel("Paused"); setOrb({ scale: prefersReduced ? 0.95 : 0.92, dur: 0.8, ease: "ease" }); softenAmbience(); };
   const resumeSession = () => { pausedRef.current = false; setPaused(false); ensureAudio(); if (soundRef.current && !scapeRef.current) buildAmbience(); runPhase(); };
   const goHome = () => { clearTimers(); pausedRef.current = false; setPaused(false); teardownAmbience(0.9); setScreen("home"); setOrb({ scale: LO, dur: 1, ease: "ease" }); setRemaining(durationMin * 60); setProgress(0); setPatternId((pid) => pid === "sigh" ? DEFAULT_PATTERN[mode] : pid); };
-  function finishSession() { clearTimers(); pausedRef.current = false; setPaused(false); if (modeRef.current === "breathe") bowl("done"); teardownAmbience(modeRef.current === "sleep" ? 3.4 : 1.6); try { const entry = { t: Date.now(), mode: modeRef.current, pattern: patternIdRef.current, min: Math.max(1, Math.round(targetRef.current / 60)) }; setSessions((prev) => { const next = [...prev, entry]; saveHist(next); return next; }); } catch (e) {} setScreen("done"); }
+  function finishSession() { clearTimers(); pausedRef.current = false; setPaused(false); if (modeRef.current === "breathe") bowl("done"); teardownAmbience(modeRef.current === "sleep" ? 3.4 : 1.6); setMoodAfter(null); try { const entry = { t: Date.now(), mode: modeRef.current, pattern: patternIdRef.current, min: Math.max(1, Math.round(targetRef.current / 60)), moodBefore: (typeof moodBeforeRef.current === "number" ? moodBeforeRef.current : null), moodAfter: null }; setSessions((prev) => { const next = [...prev, entry]; saveHist(next); return next; }); } catch (e) {} setScreen("done"); }
+  // A gentle, skippable calm check before breathing → sets moodBefore, then starts. Sleep skips it entirely.
+  const beginWithCheckin = (patOverride, durSecOverride) => {
+    if (mode !== "breathe") { startSession(patOverride, durSecOverride); return; }
+    pendingStartRef.current = { pat: (typeof patOverride === "string" ? patOverride : undefined), dur: (typeof durSecOverride === "number" ? durSecOverride : undefined) };
+    moodBeforeRef.current = null; setMoodAfter(null); setPreCheck(true);
+  };
+  const startAfterCheckin = (mood) => {
+    moodBeforeRef.current = (typeof mood === "number") ? mood : null; setPreCheck(false);
+    const j = pendingStartRef.current || {}; pendingStartRef.current = null;
+    startSession(j.pat, j.dur);
+  };
+  // Post-session tap patches the just-created entry with moodAfter and reveals the lift.
+  const recordMoodAfter = (mood) => { setMoodAfter(mood); setSessions((prev) => { if (!prev.length) return prev; const next = prev.slice(); next[next.length - 1] = { ...next[next.length - 1], moodAfter: mood }; saveHist(next); return next; }); };
   const switchMode = (m) => { if (m === mode) return; clearTimers(); teardownAmbience(0.4); setMode(m); setScreen("home"); setPatternId(DEFAULT_PATTERN[m]); setDurationMin(DEFAULT_DUR[m]); setRemaining(DEFAULT_DUR[m] * 60); setProgress(0); setTone("cool"); setOrb({ scale: LO, dur: 1, ease: "ease" }); };
   const toggleSound = () => {
     ensureAudio(); const next = !soundOn; setSoundOn(next); soundRef.current = next;
@@ -679,6 +698,16 @@ export default function Lull() {
   const seg = (sel) => ({ flex: "1 1 28%", padding: "12px 8px", borderRadius: 13, border: "1px solid transparent", background: sel ? wa(0.12) : "transparent", color: sel ? ink : inkA(0.5), transition: "background .35s ease, color .35s ease", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 });
   const glassBtn = lightUI ? { "--glow": ringFrom, "--glow2": ringTo, position: "relative", overflow: "hidden", padding: "17px 0", width: "100%", borderRadius: 999, color: "#2a1c55", fontSize: 16.5, fontWeight: 600, letterSpacing: 0.8, background: "linear-gradient(178deg, #efe7ff, #c3acff)", border: "1px solid rgba(120,90,220,0.4)", boxShadow: `0 12px 34px ${ringFrom}33, inset 0 1.4px 0.5px rgba(255,255,255,0.7), inset 0 -8px 18px rgba(120,90,200,0.16)`, transition: "transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .3s ease, filter .45s ease" } : { "--glow": ringFrom, "--glow2": ringTo, position: "relative", overflow: "hidden", padding: "17px 0", width: "100%", borderRadius: 999, color: "#FBFAFF", fontSize: 16.5, fontWeight: 600, letterSpacing: 0.8, boxShadow: `0 14px 46px ${ringFrom}40, 0 6px 18px ${ringTo}30, 0 1px 0 rgba(255,255,255,0.18), inset 0 1.4px 0.5px rgba(255,255,255,0.66), inset 0 -1.2px 1px rgba(255,255,255,0.30), inset 0 0 18px rgba(255,255,255,0.10), inset 0 -14px 26px rgba(0,0,0,0.18)`, transition: "transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .3s ease, filter .45s ease" };
   const textBtn = { padding: "12px 18px", color: inkA(0.5), fontSize: 14, letterSpacing: 0.3 };
+  // Five-dot calm scale (Tense → Calm), tinted with the current orb's ring palette. One tap fires onPick.
+  const moodScale = (value, onPick) => { const c0 = ringColors[0], c1 = ringColors[ringColors.length - 1]; return (
+    <div role="radiogroup" aria-label="How calm do you feel, tense to calm" style={{ display: "flex", flexDirection: "column", gap: 9, alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 13 }}>
+        {[1, 2, 3, 4, 5].map((v) => { const on = value === v; return (
+          <button key={v} role="radio" aria-checked={on} aria-label={MOOD_LABELS[v]} className="lull-btn" onClick={() => onPick(v)} style={{ width: 38, height: 38, borderRadius: "50%", border: "1px solid " + (on ? wa(0.55) : wa(0.2)), background: on ? `radial-gradient(circle at 50% 38%, ${c0}, ${c1})` : wa(0.05), boxShadow: on ? `0 0 20px -3px ${c1}` : "none", transform: on ? "scale(1.14)" : "scale(1)", transition: "transform .2s cubic-bezier(.2,.8,.2,1), background .2s ease, box-shadow .25s ease, border-color .2s ease" }} />); })}
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", width: 38 * 5 + 13 * 4, fontSize: 11, opacity: 0.5, letterSpacing: 0.4 }}><span>Tense</span><span>Calm</span></div>
+    </div>
+  ); };
 
   // a rotating, turbulence-displaced, masked smoke layer (cool + warm crossfaded)
   const smokeLayer = (coolBg, warmBg, blur, spin, rev, filterId, mask) => (
@@ -882,7 +911,7 @@ export default function Lull() {
             </div>
             )}
             {mode === "breathe" && (
-              <button className="lull-btn" onClick={() => startSession("sigh", 90)} aria-label="Reset — a 90-second physiological-sigh session to calm quickly" style={{ alignSelf: "center", display: "flex", alignItems: "center", gap: 9, padding: "9px 17px 9px 15px", borderRadius: 999, background: "linear-gradient(180deg, " + wa(0.11) + ", " + wa(0.04) + ")", border: "1px solid " + wa(0.2), color: ink, marginBottom: 2 }}>
+              <button className="lull-btn" onClick={() => beginWithCheckin("sigh", 90)} aria-label="Reset — a 90-second physiological-sigh session to calm quickly" style={{ alignSelf: "center", display: "flex", alignItems: "center", gap: 9, padding: "9px 17px 9px 15px", borderRadius: 999, background: "linear-gradient(180deg, " + wa(0.11) + ", " + wa(0.04) + ")", border: "1px solid " + wa(0.2), color: ink, marginBottom: 2 }}>
                 <span aria-hidden style={{ fontSize: 14, opacity: 0.85 }}>✦</span>
                 <span style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: 0.3 }}>Reset</span>
                 <span style={{ fontSize: 11.5, opacity: 0.58, letterSpacing: 0.2 }}>· 90-sec calm</span>
@@ -915,7 +944,7 @@ export default function Lull() {
               );
             })()}
             {scapeId === "binaural" && (<p style={{ fontSize: 12, opacity: 0.55, textAlign: "center", margin: "2px 0 0", letterSpacing: 0.3 }}>Best with headphones</p>)}
-            <button className="lull-btn lull-cta" onClick={startSession} style={{ ...glassBtn, marginTop: 4 }}>Begin</button>
+            <button className="lull-btn lull-cta" onClick={beginWithCheckin} style={{ ...glassBtn, marginTop: 4 }}>Begin</button>
             {sessions.length > 0 && (<button className="lull-btn" onClick={() => setShowHistory(true)} style={{ marginTop: 2, padding: "7px 0", fontSize: 12.5, letterSpacing: 0.4, color: inkA(0.5), alignSelf: "center" }}>{(() => { const w = minutesSince(sessions, Date.now() - 7 * DAY_MS); return w > 0 ? `You’ve breathed ${w} min this week` : "Your breaths"; })()}</button>)}
           </div>
         )}
@@ -932,9 +961,20 @@ export default function Lull() {
             <div style={{ marginBottom: 14, borderRadius: "50%", boxShadow: `0 0 60px ${(selectedOrb.ring && selectedOrb.ring[0]) || th.ringTo}66` }}>{orbChip(orbId, 96)}</div>
             <div style={{ fontSize: 28, fontWeight: 300, letterSpacing: 0.5 }}>That's it.</div>
             <p style={{ fontSize: 14, opacity: 0.6, margin: 0, maxWidth: 260 }}>You gave yourself {durationMin} {durationMin === 1 ? "minute" : "minutes"}. Carry it with you.</p>
-            {(() => { const w = minutesSince(sessions, Date.now() - 7 * DAY_MS); return w > 0 ? (<p style={{ fontSize: 12.5, opacity: 0.42, margin: "6px 0 0", letterSpacing: 0.3 }}>{`${w} minutes to breathe this week.`}</p>) : null; })()}
+            {(() => {
+              if (moodAfter == null) return (
+                <div style={{ marginTop: 16, display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+                  <div style={{ fontSize: 13, opacity: 0.6, letterSpacing: 0.3 }}>How do you feel now?</div>
+                  {moodScale(null, recordMoodAfter)}
+                </div>
+              );
+              const before = moodBeforeRef.current; let msg;
+              if (typeof before === "number") { const d = moodAfter - before; msg = d >= 2 ? "Much calmer than when you started." : d === 1 ? "A little calmer than when you started." : d === 0 ? (moodAfter >= 4 ? "You held your calm." : "Steady. However you feel is okay.") : "However you feel is okay. You showed up."; }
+              else msg = "Noticed. However you feel is okay.";
+              return (<p style={{ fontSize: 13.5, opacity: 0.62, margin: "12px 0 0", maxWidth: 260, letterSpacing: 0.2 }}>{msg}</p>);
+            })()}
             <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%", maxWidth: 240, marginTop: 26 }}>
-              <button className="lull-btn lull-cta" onClick={startSession} style={glassBtn}>Again</button>
+              <button className="lull-btn lull-cta" onClick={beginWithCheckin} style={glassBtn}>Again</button>
               <button className="lull-btn" onClick={goHome} style={textBtn}>Done</button>
             </div>
           </div>
@@ -1080,27 +1120,53 @@ export default function Lull() {
         </div>
       )}
 
+      {preCheck && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 65, backgroundColor: groundSolid, backgroundImage: groundBg, color: ink, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", gap: 18, padding: "max(30px, calc(env(safe-area-inset-top) + 12px)) 30px calc(34px + env(safe-area-inset-bottom))" }}>
+          <div style={{ fontSize: 11, letterSpacing: 3, textTransform: "uppercase", fontWeight: 600, opacity: 0.5 }}>Before you begin</div>
+          <div style={{ fontSize: 25, fontWeight: 300, letterSpacing: 0.4 }}>How do you feel?</div>
+          <p style={{ fontSize: 13.5, opacity: 0.5, margin: "-6px 0 4px", maxWidth: "30ch", lineHeight: 1.5 }}>One tap — we’ll check in again after. Just for you, stays on this device.</p>
+          {moodScale(null, startAfterCheckin)}
+          <button className="lull-btn" onClick={() => startAfterCheckin(null)} style={{ ...textBtn, marginTop: 8 }}>Skip</button>
+        </div>
+      )}
+
       {showHistory && (
         <div style={{ position: "fixed", inset: 0, zIndex: 60, backgroundColor: groundSolid, backgroundImage: groundBg, color: ink, display: "flex", flexDirection: "column", padding: "max(30px, calc(env(safe-area-inset-top) + 12px)) 26px calc(34px + env(safe-area-inset-bottom))", overflowY: "auto" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
-            <span style={{ fontSize: 12, letterSpacing: 5, textTransform: "uppercase", fontWeight: 500, opacity: 0.6 }}>Your breaths</span>
+            <span style={{ fontSize: 12, letterSpacing: 5, textTransform: "uppercase", fontWeight: 500, opacity: 0.6 }}>Insights</span>
             <button className="lull-btn" aria-label="Close" onClick={() => setShowHistory(false)} style={{ padding: "6px 4px", opacity: 0.75, fontSize: 15 }}>Done</button>
           </div>
           {(() => {
             const week = minutesSince(sessions, Date.now() - 7 * DAY_MS);
             const all = minutesSince(sessions);
+            const lift = moodLift(sessions);
             const recent = sessions.slice(-9).reverse();
+            const liftGreen = lightUI ? "#2e8b57" : "#8fe0b0";
             return (<>
               <div style={{ marginTop: 4 }}>
                 <div style={{ fontSize: 58, fontWeight: 200, letterSpacing: -1, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>{week}<span style={{ fontSize: 20, fontWeight: 300, opacity: 0.55, marginLeft: 8 }}>min</span></div>
                 <div style={{ fontSize: 14, opacity: 0.55, marginTop: 8, maxWidth: 300 }}>{week > 0 ? "to breathe, this week" : "A quiet week — your breaths are here when you need them."}</div>
               </div>
               <div style={{ fontSize: 13, opacity: 0.42, marginTop: 18, letterSpacing: 0.2 }}>{all} minutes · {sessions.length} {sessions.length === 1 ? "breath" : "breaths"}, all-time</div>
+              {lift && (
+                <div style={{ marginTop: 22, padding: "16px 18px", borderRadius: 16, background: wa(0.05), border: "1px solid " + wa(0.1) }}>
+                  {lift.avg > 0.05 ? (<>
+                    <div style={{ fontSize: 27, fontWeight: 300, letterSpacing: -0.2, fontVariantNumeric: "tabular-nums", color: liftGreen }}>+{lift.avg.toFixed(1)}<span style={{ fontSize: 13, fontWeight: 400, opacity: 0.75, marginLeft: 9, letterSpacing: 0.3, color: ink }}>calmer, on average</span></div>
+                    <div style={{ fontSize: 12.5, opacity: 0.5, marginTop: 6, lineHeight: 1.5 }}>Across {lift.n} {lift.n === 1 ? "check-in" : "check-ins"}, on a 1–5 scale — how much a session tends to settle you.</div>
+                  </>) : (<>
+                    <div style={{ fontSize: 18, fontWeight: 300, letterSpacing: 0.2 }}>You show up for yourself.</div>
+                    <div style={{ fontSize: 12.5, opacity: 0.5, marginTop: 6, lineHeight: 1.5 }}>{lift.n} {lift.n === 1 ? "check-in" : "check-ins"} recorded. However you feel is okay.</div>
+                  </>)}
+                </div>
+              )}
               <div style={{ marginTop: 24, display: "flex", flexDirection: "column" }}>
-                {recent.map((s, i) => { const d = new Date(s.t); const day = d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }); const pn = (PATTERNS[s.mode] && PATTERNS[s.mode][s.pattern] && PATTERNS[s.mode][s.pattern].name) || s.pattern; return (
+                {recent.map((s, i) => { const d = new Date(s.t); const day = d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }); const pn = (PATTERNS[s.mode] && PATTERNS[s.mode][s.pattern] && PATTERNS[s.mode][s.pattern].name) || s.pattern; const hasMood = typeof s.moodBefore === "number" && typeof s.moodAfter === "number"; const md = hasMood ? s.moodAfter - s.moodBefore : null; return (
                   <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 2px", borderBottom: "1px solid " + wa(0.08) }}>
                     <span style={{ fontSize: 14 }}>{day}</span>
-                    <span style={{ fontSize: 13, opacity: 0.55 }}>{s.mode === "sleep" ? "Sleep" : pn} · {s.min} min</span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                      {hasMood && (<span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.2, padding: "2px 7px", borderRadius: 999, fontVariantNumeric: "tabular-nums", color: md > 0 ? liftGreen : inkA(0.6), background: md > 0 ? (lightUI ? "rgba(46,139,87,0.12)" : "rgba(140,224,176,0.14)") : wa(0.06) }}>{md > 0 ? `+${md}` : md === 0 ? "±0" : `${md}`}</span>)}
+                      <span style={{ fontSize: 13, opacity: 0.55 }}>{s.mode === "sleep" ? "Sleep" : pn} · {s.min} min</span>
+                    </span>
                   </div>); })}
               </div>
               <div style={{ marginTop: "auto", paddingTop: 30, fontSize: 12.5, opacity: 0.4, textAlign: "center", letterSpacing: 0.3 }}>No streaks. No goals. Just the breaths you’ve taken.</div>
