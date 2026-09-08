@@ -999,16 +999,18 @@ export default function Lull() {
 
         {screen === "home" && (
           <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 12 }}>
-            <div style={{ display: "flex", gap: 8, justifyContent: "center", alignItems: "center", flexWrap: "wrap" }}>
-              <button className="lull-btn" aria-label="Choose your orb" onClick={() => setOrbStoreOpen(true)} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 13px 6px 6px", borderRadius: 999, background: wa(0.06), border: "1px solid " + wa(0.16), color: ink }}>
-                {orbChip(orbId, 26)}
-                <span style={{ fontSize: 13, fontWeight: 500, letterSpacing: 0.3 }}>{selectedOrb.name}</span>
-                <span style={{ fontSize: 12, opacity: 0.5, letterSpacing: 0.5 }}>Orbs ›</span>
-              </button>
-              <button className="lull-btn" aria-label="Choose your sound" onClick={() => setOrbStoreOpen(true)} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 13px 6px 6px", borderRadius: 999, background: wa(0.06), border: "1px solid " + wa(0.16), color: ink }}>
-                {soundChip(scapeId, 26)}
-                <span style={{ fontSize: 13, fontWeight: 500, letterSpacing: 0.3 }}>{(SOUND_BY_ID[scapeId] || SOUND[0]).name}</span>
-                <span style={{ fontSize: 12, opacity: 0.5, letterSpacing: 0.5 }}>Sounds ›</span>
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+              <button className="lull-btn" aria-label="Choose your orb and sound" onClick={() => setOrbStoreOpen(true)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 14px 6px 6px", borderRadius: 999, background: wa(0.06), border: "1px solid " + wa(0.16), color: ink }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {orbChip(orbId, 26)}
+                  <span style={{ fontSize: 13, fontWeight: 500, letterSpacing: 0.3 }}>{selectedOrb.name}</span>
+                </span>
+                <span aria-hidden="true" style={{ width: 1, height: 18, background: wa(0.18) }} />
+                <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {soundChip(scapeId, 26)}
+                  <span style={{ fontSize: 13, fontWeight: 500, letterSpacing: 0.3 }}>{(SOUND_BY_ID[scapeId] || SOUND[0]).name}</span>
+                </span>
+                <span style={{ fontSize: 13, opacity: 0.5, letterSpacing: 0.5, marginLeft: 1 }}>›</span>
               </button>
             </div>
             {selectedOrb.kind === "coded" && (
