@@ -88,9 +88,9 @@ const AUDIO = {
   breathe: { padFreqs: [146.83, 220.0, 293.66], padFilterLo: 480, padFilterHi: 940, padPeak: 0.2, padLow: 0.06, noise: 0.012, noiseFilter: 520, bowlIn: 528, bowlOut: 396, bowlVol: 0.085 },
   sleep: { padFreqs: [98.0, 146.83, 196.0], padFilterLo: 280, padFilterHi: 520, padPeak: 0.16, padLow: 0.05, noise: 0.016, noiseFilter: 320, bowlIn: 396, bowlOut: 264, bowlVol: 0.05 },
 };
-const DURATIONS = { breathe: [1, 3, 5], meditate: [3, 5, 10], sleep: [15, 30, 60] };
+const DURATIONS = { breathe: [1, 3, 5], meditate: [3, 5, 10], sleep: [30, 60, 360, 480] };
 const DEFAULT_PATTERN = { breathe: "calm", meditate: "body", sleep: "drift" };
-const DEFAULT_DUR = { breathe: 3, meditate: 5, sleep: 15 };
+const DEFAULT_DUR = { breathe: 3, meditate: 5, sleep: 30 };
 // Soundscapes: three ship free; others unlock via a sound pack (or the Everything bundle).
 // Each is generated procedurally in createSoundscape — no audio files. `pack` names the pack it belongs to.
 const SOUND = [
@@ -961,7 +961,7 @@ export default function Lull() {
                 <button key={id} className="lull-dot lull-btn" aria-label={`Orb colour: ${t.name}`} aria-pressed={sel} title={t.name} onClick={() => setThemeId(id)} style={{ width: 30, height: 30, borderRadius: "50%", padding: 0, backgroundImage: t.swatch, border: "1px solid " + wa(0.3), boxShadow: sel ? (lightUI ? "0 0 0 2px rgba(70,50,140,0.8), 0 3px 12px rgba(80,60,140,0.25)" : "0 0 0 2px rgba(255,255,255,0.9), 0 3px 12px rgba(0,0,0,0.45)") : (lightUI ? "0 2px 8px rgba(80,60,140,0.2)" : "0 2px 8px rgba(0,0,0,0.35)"), transform: sel ? "scale(1.14)" : "scale(1)", transition: "transform .2s ease, box-shadow .2s ease" }} />); })}
             </div>
             )}
-            {(() => { const entries = Object.entries(pats).filter(([id]) => id !== "sigh"); const cols = Math.min(entries.length, 4); return (
+            {(() => { const entries = Object.entries(pats).filter(([id]) => id !== "sigh"); const cols = entries.length === 4 ? 2 : Math.min(entries.length, 3); return (
               <div style={{ ...segWrap, display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
                 {entries.map(([id, p]) => { const sel = patternId === id; return (<button key={id} className="lull-seg lull-btn" aria-pressed={sel} onClick={() => setPatternId(id)} style={seg(sel)}><span style={{ fontSize: 14, fontWeight: 500 }}>{p.name}</span><span style={{ fontSize: 10.5, opacity: 0.6, letterSpacing: 0.3, textAlign: "center" }}>{p.goal || p.ratio}</span></button>); })}
               </div>
