@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { Volume2, VolumeX, Sun, Moon, CalendarDays } from "lucide-react";
+import { Volume2, VolumeX, Sun, Moon, CalendarDays, Waves } from "lucide-react";
 
 // Lull — a minute to breathe.  Tiny Bird, Big Dreams.
 // A living smoke-plasma orb (six themes, three swirl styles) that breathes with you.
@@ -322,32 +322,40 @@ const NATURE_AUDIO = {
   // bed would clip the pops. `limit` inserts a limiter that tames the peaks so we can bring it up.
   fire: { url: "/assets/fire.mp3", gain: 14, limit: true },
 };
+const NATURE_IDS = SOUND.filter((s) => NATURE_AUDIO[s.id]).map((s) => s.id); // nature bed ids, in registry order
+
+// Build one looping nature bed: <audio> → gain → (optional limiter) → out. `level` (0..1) scales the
+// file's baked gain; `setLevel` adjusts it live. Shared by breathing sessions and the standalone mixer.
+function createNatureNode(ctx, out, id, level) {
+  const conf = NATURE_AUDIO[id]; if (!conf) return null;
+  const g = ctx.createGain(); g.gain.value = 0.0001; g.connect(out);
+  let head = g;
+  if (conf.limit) {
+    const lim = ctx.createDynamicsCompressor();
+    lim.threshold.value = -10; lim.knee.value = 6; lim.ratio.value = 20; lim.attack.value = 0.003; lim.release.value = 0.25;
+    lim.connect(g); head = lim;
+  }
+  const vg = ctx.createGain(); vg.gain.value = conf.gain * level; vg.connect(head);
+  let el = null;
+  try {
+    el = new Audio(); el.src = conf.url; el.loop = true; el.preload = "auto";
+    const node = ctx.createMediaElementSource(el); node.connect(vg);
+    const p = el.play(); if (p && p.catch) p.catch(() => {});
+    const t = ctx.currentTime; g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(1, t + 1.4);
+  } catch (e) {}
+  return {
+    el,
+    setLevel(l) { try { vg.gain.setTargetAtTime(conf.gain * Math.max(0, l), ctx.currentTime, 0.08); } catch (e) {} },
+    soften() { try { const t = ctx.currentTime; g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(Math.max(g.gain.value, 0.0001), t); g.gain.linearRampToValueAtTime(0.55, t + 0.6); } catch (e) {} },
+    stop(fade = 1.4) { try { const t = ctx.currentTime; g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(Math.max(g.gain.value, 0.0001), t); g.gain.exponentialRampToValueAtTime(0.0001, t + fade); } catch (e) {} if (el) { setTimeout(() => { try { el.pause(); } catch (e) {} }, (fade + 0.15) * 1000); } },
+  };
+}
 
 function createSoundscape(id, ctx, master, reverb, buffers, mode) {
-  // Nature sounds play from a real looping recording via a media element (see NATURE_AUDIO).
+  // Nature sounds play from a real looping recording via a media element (see createNatureNode).
   if (NATURE_AUDIO[id]) {
-    const conf = NATURE_AUDIO[id];
-    const g = ctx.createGain(); g.gain.value = 0.0001; g.connect(master);
-    // Optional limiter for transient-heavy loops (fire): tames the sharp peaks so the bed can come up.
-    let head = g;
-    if (conf.limit) {
-      const lim = ctx.createDynamicsCompressor();
-      lim.threshold.value = -10; lim.knee.value = 6; lim.ratio.value = 20; lim.attack.value = 0.003; lim.release.value = 0.25;
-      lim.connect(g); head = lim;
-    }
-    const vg = ctx.createGain(); vg.gain.value = conf.gain; vg.connect(head);
-    let el = null;
-    try {
-      el = new Audio(); el.src = conf.url; el.loop = true; el.preload = "auto";
-      const node = ctx.createMediaElementSource(el); node.connect(vg);
-      const p = el.play(); if (p && p.catch) p.catch(() => {});
-      const t = ctx.currentTime; g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(1, t + 1.4);
-    } catch (e) {}
-    return {
-      onPhase() {}, onStart() {}, onDone() {},
-      soften() { try { const t = ctx.currentTime; g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(Math.max(g.gain.value, 0.0001), t); g.gain.linearRampToValueAtTime(0.55, t + 0.6); } catch (e) {} },
-      stop(fade = 1.4) { try { const t = ctx.currentTime; g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(Math.max(g.gain.value, 0.0001), t); g.gain.exponentialRampToValueAtTime(0.0001, t + fade); } catch (e) {} if (el) { setTimeout(() => { try { el.pause(); } catch (e) {} }, (fade + 0.15) * 1000); } },
-    };
+    const n = createNatureNode(ctx, master, id, 1);
+    return { onPhase() {}, onStart() {}, onDone() {}, soften() { if (n) n.soften(); }, stop(fade = 1.4) { if (n) n.stop(fade); } };
   }
   const bus = ctx.createGain(); bus.gain.value = 1; bus.connect(master);
   const wet = ctx.createGain(); wet.gain.value = 0.4; bus.connect(wet); wet.connect(reverb);
@@ -504,6 +512,11 @@ export default function Lull() {
   const [sessions, setSessions] = useState(() => (typeof window !== "undefined" ? loadHist() : []));
   const [showHistory, setShowHistory] = useState(false);
   const [exportOpen, setExportOpen] = useState(false); const [copied, setCopied] = useState(false);
+  // Standalone ambient mixer (play nature beds without a session; blend several, each with its own level).
+  const [mixerOpen, setMixerOpen] = useState(false);
+  const [mix, setMix] = useState(() => { try { return JSON.parse(localStorage.getItem("lull.mix.v1")) || {}; } catch (e) { return {}; } }); // { id: 0..1 }
+  const [mixPlaying, setMixPlaying] = useState(false);
+  const mixBusRef = useRef(null); const mixNodesRef = useRef({}); const mixPlayingRef = useRef(false);
   const [preCheck, setPreCheck] = useState(false);      // pre-session mood check-in overlay
   const [moodAfter, setMoodAfter] = useState(null);     // done-screen mood → reveals the calm lift
 
@@ -597,6 +610,44 @@ export default function Lull() {
   const softenAmbience = () => { try { if (scapeRef.current && scapeRef.current.soften) scapeRef.current.soften(); } catch (e) {} };
   const bowl = (type) => { try { if (!soundRef.current || !scapeRef.current) return; if (type === "start" && scapeRef.current.onStart) scapeRef.current.onStart(); else if (type === "done" && scapeRef.current.onDone) scapeRef.current.onDone(); } catch (e) {} };
 
+  // ---------- ambient mixer: play nature beds standalone, blended, each with its own level ----------
+  const setMasterAudible = () => { try { const ctx = audioRef.current, m = nodesRef.current && nodesRef.current.master; if (!ctx || !m) return; const t = ctx.currentTime; m.gain.cancelScheduledValues(t); m.gain.setValueAtTime(Math.max(m.gain.value, 0.0001), t); m.gain.linearRampToValueAtTime(0.45, t + 0.4); } catch (e) {} };
+  const updateMediaSession = () => {
+    try {
+      if (!("mediaSession" in navigator)) return; const ms = navigator.mediaSession;
+      const active = NATURE_IDS.filter((id) => mixPlayingRef.current && (mix[id] || 0) > 0 && soundOwned(id));
+      if (active.length) {
+        const names = active.map((id) => (SOUND_BY_ID[id] || {}).name).filter(Boolean).join(" · ");
+        ms.metadata = new window.MediaMetadata({ title: names || "Ambient sound", artist: "Lull", album: "Calm", artwork: [{ src: "/icon-512.png", sizes: "512x512", type: "image/png" }] });
+        ms.playbackState = "playing";
+        try { ms.setActionHandler("play", () => startMix()); } catch (e) {}
+        try { ms.setActionHandler("pause", () => stopMix()); } catch (e) {}
+        try { ms.setActionHandler("stop", () => stopMix()); } catch (e) {}
+      } else { try { ms.playbackState = "none"; ms.metadata = null; } catch (e) {} }
+    } catch (e) {}
+  };
+  const applyMix = () => {
+    const ctx = audioRef.current; if (!ctx || !mixBusRef.current) return; const nodes = mixNodesRef.current;
+    NATURE_IDS.forEach((id) => {
+      const lvl = mixPlayingRef.current && soundOwned(id) ? (mix[id] || 0) : 0;
+      if (lvl > 0) { if (nodes[id]) nodes[id].setLevel(lvl); else nodes[id] = createNatureNode(ctx, mixBusRef.current, id, lvl); }
+      else if (nodes[id]) { try { nodes[id].stop(0.8); } catch (e) {} delete nodes[id]; }
+    });
+  };
+  const startMix = () => {
+    teardownAmbience(0.4); // ambient mixer and a breathing-session bed are mutually exclusive
+    ensureAudio(); const ctx = audioRef.current; if (!ctx || !nodesRef.current) return;
+    if (!soundRef.current) { setSoundOn(true); soundRef.current = true; }
+    setMasterAudible();
+    if (!mixBusRef.current) { const bus = ctx.createGain(); bus.gain.value = 1; const lim = ctx.createDynamicsCompressor(); lim.threshold.value = -3; lim.knee.value = 4; lim.ratio.value = 20; lim.attack.value = 0.004; lim.release.value = 0.25; bus.connect(lim); lim.connect(nodesRef.current.master); mixBusRef.current = bus; }
+    mixPlayingRef.current = true; setMixPlaying(true); applyMix(); updateMediaSession();
+  };
+  const stopMix = () => { mixPlayingRef.current = false; setMixPlaying(false); const nodes = mixNodesRef.current; Object.keys(nodes).forEach((id) => { try { nodes[id].stop(0.8); } catch (e) {} delete nodes[id]; }); updateMediaSession(); };
+  const setMixLevel = (id, v) => setMix((prev) => ({ ...prev, [id]: v }));
+  const onMixSlide = (id, v) => { setMixLevel(id, v); if (v > 0 && !mixPlayingRef.current) startMix(); }; // touch a fader → it plays
+  useEffect(() => { try { localStorage.setItem("lull.mix.v1", JSON.stringify(mix)); } catch (e) {} if (mixPlayingRef.current) { applyMix(); updateMediaSession(); } }, [mix]);
+  useEffect(() => { const h = () => { try { if (!document.hidden && audioRef.current && audioRef.current.state === "suspended" && (mixPlayingRef.current || scapeRef.current)) audioRef.current.resume(); } catch (e) {} }; document.addEventListener("visibilitychange", h); return () => document.removeEventListener("visibilitychange", h); }, []);
+
   useEffect(() => () => { clearTimers(); try { teardownAmbience(0.1); } catch (e) {} try { if (audioRef.current) audioRef.current.close(); } catch (e) {} }, [clearTimers]);
   useEffect(() => {
     if (screen === "done" && mode === "sleep") { const id = requestAnimationFrame(() => setSleepVeil(1)); return () => cancelAnimationFrame(id); }
@@ -632,6 +683,7 @@ export default function Lull() {
     // handler the first arg is the event, which we ignore and fall back to the chosen pattern.
     const pid = (typeof patOverride === "string" && PATTERNS[mode][patOverride]) ? patOverride : patternId;
     const p = PATTERNS[mode][pid]; if (!p) return;
+    if (mixPlayingRef.current) stopMix(); // a session's bed replaces the standalone ambient mix
     if (pid !== patternId) { setPatternId(pid); patternIdRef.current = pid; }
     phasesRef.current = p.phases; idxRef.current = 0; elapsedRef.current = 0;
     targetRef.current = (typeof durSecOverride === "number" && durSecOverride > 0) ? durSecOverride : durationMin * 60;
@@ -796,6 +848,12 @@ export default function Lull() {
     @keyframes lullGlow { 0% { filter: brightness(1) saturate(1); } 45% { filter: brightness(1.1) saturate(1.16) drop-shadow(0 0 24px var(--glow, #9D8CFF)); } 100% { filter: brightness(1) saturate(1); } }
     @media (prefers-reduced-motion: reduce) { .lull-cta:active { animation: none; } }
     ::selection { background: rgba(255,158,125,0.35); }
+    .lull-range { -webkit-appearance: none; appearance: none; width: 100%; height: 26px; background: transparent; cursor: pointer; }
+    .lull-range::-webkit-slider-runnable-track { height: 4px; border-radius: 999px; background: rgba(255,255,255,0.16); }
+    .lull-range::-moz-range-track { height: 4px; border-radius: 999px; background: rgba(255,255,255,0.16); }
+    .lull-range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; margin-top: -7px; border-radius: 50%; background: #efeaff; box-shadow: 0 1px 5px rgba(0,0,0,0.5); }
+    .lull-range::-moz-range-thumb { width: 18px; height: 18px; border: none; border-radius: 50%; background: #efeaff; box-shadow: 0 1px 5px rgba(0,0,0,0.5); }
+    .lull-range:focus-visible { outline: 2px solid rgba(255,255,255,0.7); outline-offset: 4px; border-radius: 999px; }
     @media (prefers-reduced-motion: reduce) { .orb-idle,.amb1,.amb2 { animation: none !important; } }
   `;
   const segWrap = { display: "flex", flexWrap: "wrap", gap: 8, width: "100%", background: wa(0.05), border: "1px solid " + wa(0.1), borderRadius: 18, padding: 6 };
@@ -873,6 +931,7 @@ export default function Lull() {
           <span style={{ fontSize: 14, letterSpacing: 6, textTransform: "uppercase", fontWeight: 500, opacity: 0.82, paddingLeft: 6 }}>Lull</span>
           {false && (<button className="lull-btn" aria-label="theme" onClick={() => setLight((v) => !v)} style={{ position: "absolute", left: 0, padding: 8, opacity: 0.7 }}>{lightUI ? <Moon size={19} /> : <Sun size={19} />}</button>)}
           <div style={{ position: "absolute", right: 0, display: "flex", alignItems: "center", gap: 2 }}>
+            {screen === "home" && (<button className="lull-btn" aria-label="Ambient sounds" onClick={() => setMixerOpen(true)} style={{ padding: 8, opacity: 0.7, display: "flex" }}><Waves size={19} /></button>)}
             {screen === "home" && (<button className="lull-btn" aria-label="Your breaths" onClick={() => setShowHistory(true)} style={{ padding: 8, opacity: 0.7, display: "flex" }}><CalendarDays size={19} /></button>)}
             <button className="lull-btn" aria-label={soundOn ? "Mute sound" : "Unmute sound"} aria-pressed={soundOn} onClick={toggleSound} style={{ padding: 8, opacity: 0.7, display: "flex" }}>{soundOn ? <Volume2 size={20} /> : <VolumeX size={20} />}</button>
           </div>
@@ -1314,6 +1373,45 @@ export default function Lull() {
                 <button className="lull-btn" onClick={eraseData} style={{ padding: "9px 16px", borderRadius: 999, fontSize: 12.5, letterSpacing: 0.3, color: inkA(0.55), background: "transparent", border: "1px solid " + wa(0.12) }}>Erase everything</button>
               </div>
               <div style={{ paddingTop: 16, fontSize: 12.5, opacity: 0.4, textAlign: "center", letterSpacing: 0.3 }}>No streaks. No goals. Just the breaths you’ve taken. Private to this device.</div>
+            </>);
+          })()}
+        </div>
+      )}
+
+      {mixerOpen && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 70, backgroundColor: groundSolid, backgroundImage: groundBg, color: ink, display: "flex", flexDirection: "column", padding: "max(30px, calc(env(safe-area-inset-top) + 12px)) 26px calc(34px + env(safe-area-inset-bottom))", overflowY: "auto" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+            <span style={{ fontSize: 12, letterSpacing: 5, textTransform: "uppercase", fontWeight: 500, opacity: 0.6 }}>Ambient sounds</span>
+            <button className="lull-btn" aria-label="Close" onClick={() => setMixerOpen(false)} style={{ padding: "6px 4px", opacity: 0.75, fontSize: 15 }}>Done</button>
+          </div>
+          <p style={{ fontSize: 13, lineHeight: 1.5, opacity: 0.55, margin: "0 0 24px", maxWidth: "42ch" }}>Blend nature sounds into your own mix and let it play — no timer, no session. Slide a sound up to hear it.</p>
+          {(() => {
+            const owned = NATURE_IDS.filter((id) => soundOwned(id));
+            if (!owned.length) return (
+              <div style={{ marginTop: 10, textAlign: "center" }}>
+                <p style={{ fontSize: 14, opacity: 0.6, lineHeight: 1.6, margin: "0 auto 18px", maxWidth: "34ch" }}>The Nature pack — rain, ocean, forest &amp; fire — unlocks the mixer.</p>
+                <button className="lull-btn" onClick={() => { setMixerOpen(false); setOrbStoreOpen(true); }} style={{ padding: "11px 22px", borderRadius: 999, fontSize: 14, fontWeight: 600, letterSpacing: 0.3, color: "#fff", background: "linear-gradient(180deg, #9a86ff 0%, #6f5cff 100%)", boxShadow: "0 10px 22px -12px rgba(111,92,255,0.9)" }}>Get the Nature pack</button>
+              </div>
+            );
+            return (<>
+              <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+                {owned.map((id) => { const s = SOUND_BY_ID[id] || {}; const lvl = mix[id] || 0; const on = mixPlaying && lvl > 0; return (
+                  <div key={id} style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                    <div style={{ position: "relative", flexShrink: 0 }}>{soundChip(id, 44)}{on && (<span aria-hidden="true" style={{ position: "absolute", right: -1, bottom: -1, width: 11, height: 11, borderRadius: "50%", background: "#8ce0b0", boxShadow: "0 0 0 2px " + groundSolid }} />)}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 3 }}>
+                        <span style={{ fontSize: 14.5, fontWeight: 500 }}>{s.name}</span>
+                        <span style={{ fontSize: 11, opacity: 0.45, fontVariantNumeric: "tabular-nums", letterSpacing: 0.3 }}>{lvl > 0 ? Math.round(lvl * 100) + "%" : "off"}</span>
+                      </div>
+                      <input className="lull-range" type="range" min="0" max="100" value={Math.round(lvl * 100)} aria-label={(s.name || "sound") + " volume"} onChange={(e) => onMixSlide(id, +e.target.value / 100)} />
+                    </div>
+                  </div>
+                ); })}
+              </div>
+              <div style={{ marginTop: 32, display: "flex", justifyContent: "center" }}>
+                <button className="lull-btn" onClick={() => { if (mixPlaying) { stopMix(); return; } const anyOn = owned.some((id) => (mix[id] || 0) > 0); if (!anyOn) setMixLevel(owned[0], 0.6); startMix(); }} style={{ padding: "13px 44px", borderRadius: 999, fontSize: 15, fontWeight: 600, letterSpacing: 0.4, color: "#fff", background: "linear-gradient(180deg, #9a86ff 0%, #6f5cff 100%)", boxShadow: "0 12px 26px -12px rgba(111,92,255,0.9)" }}>{mixPlaying ? "Pause" : "Play"}</button>
+              </div>
+              <p style={{ marginTop: 18, fontSize: 11.5, opacity: 0.4, textAlign: "center", letterSpacing: 0.3, lineHeight: 1.5 }}>Lock-screen controls appear while it plays. Your blend is saved on this device.</p>
             </>);
           })()}
         </div>
