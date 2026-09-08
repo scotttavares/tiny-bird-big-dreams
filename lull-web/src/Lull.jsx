@@ -318,16 +318,25 @@ function loadAudioBuffer(ctx, url) {
   }));
 }
 function bufferRms(buf) { let sum = 0, n = 0; for (let c = 0; c < buf.numberOfChannels; c++) { const d = buf.getChannelData(c); for (let i = 0; i < d.length; i += 64) { sum += d[i] * d[i]; n++; } } return Math.sqrt(sum / Math.max(n, 1)) || 0; }
+function bufferPeak(buf) { let p = 0; for (let c = 0; c < buf.numberOfChannels; c++) { const d = buf.getChannelData(c); for (let i = 0; i < d.length; i += 16) { const a = d[i] < 0 ? -d[i] : d[i]; if (a > p) p = a; } } return p || 1; }
+const MASTER_LEVEL = 0.45; // master gain during a session (see ensureAudio) — used to keep boosted loops below clipping
 
 function createSoundscape(id, ctx, master, reverb, buffers, mode) {
-  // Nature sounds play from a real looping recording, level-normalized so every one sits evenly.
+  // Nature sounds play from a real looping recording. Recordings arrive at wildly different levels
+  // (some very quiet), so we boost each to an even, present loudness — targeting an RMS, but capped
+  // by the file's peak so even a heavily-boosted quiet file never clips the output.
   if (NATURE_AUDIO[id]) {
     const g = ctx.createGain(); g.gain.value = 0.0001; g.connect(master);
     let src = null, gone = false;
-    const TARGET = 0.15;
+    // Recordings arrive at wildly different levels (the rain take is ~22 dB down), so boost each toward
+    // an even, present loudness — targeting an RMS, but capped by the file's peak so even a heavily
+    // boosted quiet file never clips the output.
+    const TARGET_RMS = 0.22;   // perceived level to aim for
+    const PEAK_CEIL = 0.85;    // hold the loudest sample this far below clipping at the destination
     loadAudioBuffer(ctx, NATURE_AUDIO[id]).then((buf) => {
       if (gone) return;
-      const norm = Math.min(10, Math.max(0.5, TARGET / (bufferRms(buf) || TARGET)));
+      const rms = bufferRms(buf) || TARGET_RMS, peak = bufferPeak(buf);
+      const norm = Math.max(0.3, Math.min(40, TARGET_RMS / rms, PEAK_CEIL / (MASTER_LEVEL * peak)));
       src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
       const vg = ctx.createGain(); vg.gain.value = norm; src.connect(vg); vg.connect(g);
       try { src.start(); } catch (e) {}
