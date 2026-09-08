@@ -308,7 +308,37 @@ const HANDPAN = [146.83, 220.0, 233.08, 261.63, 293.66, 329.63, 349.23, 440.0]; 
 const HP_PARTIALS = [{ r: 1, g: 1, d: 2.6 }, { r: 2.01, g: 0.4, d: 2.0 }, { r: 3.0, g: 0.16, d: 1.3 }, { r: 5.02, g: 0.07, d: 0.8 }];
 const BOWL_PARTIALS = (done) => [{ r: 1, g: 1, d: done ? 6.5 : 3.4 }, { r: 2.76, g: 0.42, d: done ? 5 : 2.6 }, { r: 5.4, g: 0.16, d: 2.0 }];
 
+// Real recorded loops for nature sounds (replacing procedural synth). Add ocean/forest/fire as files land.
+const NATURE_AUDIO = { rain: "/assets/rain.mp3" };
+const _abCache = new Map();
+function loadAudioBuffer(ctx, url) {
+  if (_abCache.has(url)) return Promise.resolve(_abCache.get(url));
+  return fetch(url).then((r) => r.arrayBuffer()).then((ab) => new Promise((res, rej) => {
+    ctx.decodeAudioData(ab, (b) => { _abCache.set(url, b); res(b); }, rej);
+  }));
+}
+function bufferRms(buf) { let sum = 0, n = 0; for (let c = 0; c < buf.numberOfChannels; c++) { const d = buf.getChannelData(c); for (let i = 0; i < d.length; i += 64) { sum += d[i] * d[i]; n++; } } return Math.sqrt(sum / Math.max(n, 1)) || 0; }
+
 function createSoundscape(id, ctx, master, reverb, buffers, mode) {
+  // Nature sounds play from a real looping recording, level-normalized so every one sits evenly.
+  if (NATURE_AUDIO[id]) {
+    const g = ctx.createGain(); g.gain.value = 0.0001; g.connect(master);
+    let src = null, gone = false;
+    const TARGET = 0.15;
+    loadAudioBuffer(ctx, NATURE_AUDIO[id]).then((buf) => {
+      if (gone) return;
+      const norm = Math.min(10, Math.max(0.5, TARGET / (bufferRms(buf) || TARGET)));
+      src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+      const vg = ctx.createGain(); vg.gain.value = norm; src.connect(vg); vg.connect(g);
+      try { src.start(); } catch (e) {}
+      const t = ctx.currentTime; g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(1, t + 1.4);
+    }).catch(() => {});
+    return {
+      onPhase() {}, onStart() {}, onDone() {},
+      soften() { try { const t = ctx.currentTime; g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(Math.max(g.gain.value, 0.0001), t); g.gain.linearRampToValueAtTime(0.55, t + 0.6); } catch (e) {} },
+      stop(fade = 1.4) { gone = true; try { const t = ctx.currentTime; g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(Math.max(g.gain.value, 0.0001), t); g.gain.exponentialRampToValueAtTime(0.0001, t + fade); } catch (e) {} if (src) { try { src.stop(ctx.currentTime + fade + 0.1); } catch (e) {} } },
+    };
+  }
   const bus = ctx.createGain(); bus.gain.value = 1; bus.connect(master);
   const wet = ctx.createGain(); wet.gain.value = 0.4; bus.connect(wet); wet.connect(reverb);
   const bedGain = ctx.createGain(); bedGain.gain.value = 1; bedGain.connect(bus);
