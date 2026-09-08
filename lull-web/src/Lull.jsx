@@ -91,6 +91,26 @@ const AUDIO = {
 const DURATIONS = { breathe: [1, 3, 5], meditate: [3, 5, 10], sleep: [30, 60, 360, 480] };
 const DEFAULT_PATTERN = { breathe: "calm", meditate: "body", sleep: "drift" };
 const DEFAULT_DUR = { breathe: 3, meditate: 5, sleep: 30 };
+// One-line "what it's for", shown under the picker for the selected pattern.
+const PATTERN_INFO = {
+  breathe: {
+    calm: "Inhale 4 · hold 7 · exhale 8 — a long exhale to quiet anxiety and ease toward sleep.",
+    steady: "Box breathing, 4 · 4 · 4 · 4 — even and composed, for focus under pressure.",
+    ease: "Inhale 4 · exhale 6 — a gentle everyday reset you can do anywhere.",
+    coherence: "Inhale 5 · exhale 5 — a balanced ~5–6 breaths a minute to center you.",
+    custom: "Your own rhythm.",
+  },
+  meditate: {
+    body: "A slow, easy breath while you scan from head to toe — grounding.",
+    gratitude: "Easy breathing while you bring to mind what you're thankful for.",
+    presence: "Easy breathing while you anchor to the here and now.",
+  },
+  sleep: {
+    drift: "Inhale 4 · exhale 8 — a slow, long exhale to help you let go.",
+    calm: "Inhale 4 · hold 7 · exhale 8 — the 4-7-8 wind-down, for sleep.",
+    custom: "Your own rhythm.",
+  },
+};
 // Soundscapes: three ship free; others unlock via a sound pack (or the Everything bundle).
 // Each is generated procedurally in createSoundscape — no audio files. `pack` names the pack it belongs to.
 const SOUND = [
@@ -971,6 +991,7 @@ export default function Lull() {
                 {entries.map(([id, p]) => { const sel = patternId === id; return (<button key={id} className="lull-seg lull-btn" aria-pressed={sel} onClick={() => setPatternId(id)} style={seg(sel)}><span style={{ fontSize: 14, fontWeight: 500 }}>{p.name}</span><span style={{ fontSize: 10.5, opacity: 0.6, letterSpacing: 0.3, textAlign: "center" }}>{p.goal || p.ratio}</span></button>); })}
               </div>
             ); })()}
+            {PATTERN_INFO[mode] && PATTERN_INFO[mode][patternId] && (<p style={{ fontSize: 12.5, opacity: 0.5, textAlign: "center", margin: "0 4px", lineHeight: 1.5, letterSpacing: 0.2, transition: "opacity .2s ease" }}>{PATTERN_INFO[mode][patternId]}</p>)}
             {mode !== "meditate" && (<button className="lull-btn" onClick={openCustom} style={{ alignSelf: "center", padding: "2px 0 0", fontSize: 12.5, letterSpacing: 0.4, color: inkA(0.5) }}>{customPat ? "✎ Edit your pattern" : "✎ Make your own"}</button>)}
             {(() => {
               const durs = DURATIONS[mode]; const isSleep = mode === "sleep";
