@@ -17,7 +17,7 @@ workflows:
     working_directory: lull-web
 
     integrations:
-      app_store_connect: "CODEMAGIC_ASC_API_KEY"   # <-- replace with your integration name (exact match)
+      app_store_connect: "Orbit ASC API key"       # account-wide ASC API key (also manages Lull)
 
     environment:
       groups:
