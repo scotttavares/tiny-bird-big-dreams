@@ -26,8 +26,9 @@ workflows:
       xcode: latest
       cocoapods: default
       vars:
-        APP_APPLE_ID: "0000000000"                 # <-- replace with the numeric Apple ID from App Store Connect
+        APP_APPLE_ID: "6783862542"                 # numeric Apple ID of the Lull app record in App Store Connect
         BUNDLE_ID: "com.tinybirdbigdreams.lull"
+        MARKETING_VERSION: "1.1"                    # <-- App Store version string; bump each release (must exceed the live version)
 
     scripts:
       - name: Install npm dependencies
@@ -67,11 +68,14 @@ workflows:
           /usr/libexec/PlistBuddy -c "Set :UIRequiresFullScreen YES" "$PLIST" 2>/dev/null \
             || /usr/libexec/PlistBuddy -c "Add :UIRequiresFullScreen bool YES" "$PLIST"
 
-      - name: Set build number (auto-increment from App Store Connect)
+      - name: Set version and build number
         script: |
+          # Marketing version = the App Store version string (bump MARKETING_VERSION per release).
+          # Build number auto-increments from the latest build in App Store Connect.
           LATEST=$(app-store-connect get-latest-build-number "$APP_APPLE_ID" 2>/dev/null || echo "0")
           [ -z "$LATEST" ] && LATEST=0
           cd ios/App
+          agvtool new-marketing-version "$MARKETING_VERSION"
           agvtool new-version -all "$((LATEST + 1))"
 
       - name: Sign and build the signed IPA
