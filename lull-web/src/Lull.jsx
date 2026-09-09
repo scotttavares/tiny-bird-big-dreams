@@ -94,21 +94,21 @@ const DEFAULT_DUR = { breathe: 3, meditate: 5, sleep: 30 };
 // One-line "what it's for", shown under the picker for the selected pattern.
 const PATTERN_INFO = {
   breathe: {
-    calm: "Inhale 4 · hold 7 · exhale 8. A long exhale to quiet anxiety and ease toward sleep.",
-    steady: "Box breathing, 4 · 4 · 4 · 4. Even and composed, for focus under pressure.",
-    ease: "Inhale 4 · exhale 6. A gentle everyday reset you can do anywhere.",
-    coherence: "Inhale 5 · exhale 5. About six calm breaths a minute to center you.",
+    calm: "A long, slow exhale to unwind.",
+    steady: "Balanced box breathing for focus.",
+    ease: "A gentle everyday reset.",
+    coherence: "Slow, even breaths for balance.",
     custom: "Your own rhythm.",
   },
   meditate: {
-    body: "A slow, easy breath while you scan from head to toe.",
-    gratitude: "Easy breathing while you bring to mind what you're thankful for.",
-    presence: "Easy breathing while you anchor to the here and now.",
+    body: "A slow scan from head to toe.",
+    gratitude: "Rest on what you're thankful for.",
+    presence: "Come back to the here and now.",
   },
   sleep: {
-    drift: "Inhale 4 · exhale 8. A slow, long exhale to help you let go.",
-    calm: "Inhale 4 · hold 7 · exhale 8. The classic wind down, for sleep.",
-    noise: "Steady sound, no breathing. Plays on in the dark.",
+    drift: "A long exhale to help you let go.",
+    calm: "The classic wind down for sleep.",
+    noise: "Steady sound, no breathing to follow.",
     custom: "Your own rhythm.",
   },
 };
